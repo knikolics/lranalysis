@@ -1,0 +1,35 @@
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/ArDMrepos/!svn/ver/265/LRAnalysis/devel/src/ArIO
+END
+ArOutput.hh
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/ArDMrepos/!svn/ver/254/LRAnalysis/devel/src/ArIO/ArOutput.hh
+END
+ArOutput.cc
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/ArDMrepos/!svn/ver/254/LRAnalysis/devel/src/ArIO/ArOutput.cc
+END
+ArIO.hh
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/ArDMrepos/!svn/ver/265/LRAnalysis/devel/src/ArIO/ArIO.hh
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/ArDMrepos/!svn/ver/58/LRAnalysis/devel/src/ArIO/Makefile
+END
+ArIO.cc
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/ArDMrepos/!svn/ver/265/LRAnalysis/devel/src/ArIO/ArIO.cc
+END

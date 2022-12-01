@@ -1,0 +1,862 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <algorithm>
+#include <vector>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+#include <TROOT.h>
+#include <TClonesArray.h>
+#include <TMath.h>
+
+#include "ArRun.hh"
+#include "ArIO.hh"
+#include "ArAnalysis.hh"
+
+#include "ArPMT.hh"
+
+ClassImp(ArPMT)
+
+using namespace std;
+
+#define SWAP(a,b) tempr=(a);(a)=(b);(b)=tempr
+
+
+
+ArPMT :: ArPMT()
+{
+  Reset();
+}
+
+
+ArPMT :: ~ArPMT()
+{
+
+}
+
+
+void ArPMT :: Reset()
+{
+  hPedestal=0;
+
+  ePeakFraction = 0.5;
+  eCalibration = 1.;
+  eDelay = 0;
+
+//   Data.Reset();
+//   RawData.Reset();
+//   DataError.Reset();
+}
+
+
+void ArPMT :: Print(FILE *fp)
+{
+  fprintf(fp,"** PMT\n");
+  fprintf(fp,"     Channel %d\n",eID);
+  fprintf(fp,"       General:\n");
+  fprintf(fp,"         Full scale:   %4.3lf [V]\n", eFullScale);
+  fprintf(fp,"         DC Offset:    %4.3lf [V]\n", eOffset);
+  fprintf(fp,"         Coupling:     %ld [0-3]\n",  eCoupling);
+  fprintf(fp,"         BandWidth:    %ld [0-3]\n",  eBandWidth);
+  fprintf(fp,"         DiscThrs:     %d mV\n",      eDiscThrs);
+  fprintf(fp,"         Name:         %s\n",         eName.Data());
+  fprintf(fp,"         Type:         %s\n",         eType.Data());
+  fprintf(fp,"         Calibration:  %f [nVs/pe]\n",eCalibration);
+  fprintf(fp,"         Delay:        %d [ns]\n",    eDelay);
+  fprintf(fp,"         Pedestal:     %f [V]\n",     ePedestal);
+  fprintf(fp,"         PeakFraction: %f\n",         ePeakFraction);
+}
+
+
+void ArPMT :: PrintReco(FILE *fp)
+{
+  fprintf(fp,"** RecoPMT\n");
+  fprintf(fp,"     Channel %d, Name %s, Type %s\n",eID,Name().Data(),Type().Data());
+  fprintf(fp,"       Pedestal:\n");
+  fprintf(fp,"         PedTimeMin:       %10d [s]\n",     ePedTimeMin);
+  fprintf(fp,"         PedTimeMax:       %10d [s]\n",     ePedTimeMax);
+  fprintf(fp,"         PedMin:           %10.5lf [V]\n",   ePedMin);
+  fprintf(fp,"         PedMax:           %10.5lf [V]\n",   ePedMax);
+  fprintf(fp,"         PedMean:          %10.5lf [V]\n",   ePedMean);
+  fprintf(fp,"         PedSigma:         %10.5lf [V]\n",   ePedSigma);
+  fprintf(fp,"         PedChi2:          %10.5lf\n",       ePedChi2);
+  fprintf(fp,"         PedNpe:           %10d\n",          ePedNpe);
+  fprintf(fp,"         PedIntegral:      %10.5lf [Vs]\n",  ePedIntegral);
+  fprintf(fp,"         PedIntegralPe:    %10.5lf [Vs]\n",  ePedIntegralPe);
+  fprintf(fp,"         PedTimePe:        %10d [s]\n",      ePedTimePe);
+  fprintf(fp,"       Signal:\n");
+  fprintf(fp,"         PeakStartTime:    %10d [s]\n",     ePeakStartTime);
+  fprintf(fp,"         PeakTime:         %10d [s]\n",     ePeakTime);
+  fprintf(fp,"         PeakIsSaturated:  %s\n", ePeakIsSaturated>0?"yes":"no");
+  fprintf(fp,"         NPeaks:           %10d\n",          eNPeaks);
+  fprintf(fp,"         PeakValue:        %10.5lf [V]\n",   ePeakValue);
+  fprintf(fp,"         Npe:              %10d\n",          eNpe);
+  fprintf(fp,"         Integral:         %10.5lf [Vs]\n", eIntegral);
+  fprintf(fp,"         IntegralPe:       %10.5lf [Vs]\n", eIntegralPe);
+  fprintf(fp,"         IntegralPeS:      %10.5lf [Vs]\n", eIntegralPeS);
+  //fprintf(fp,"         brPeakTime:       %10d [s]\n",     ebrPeakTime);
+  //fprintf(fp,"         brIntegral:       %10.5lf [Vs]\n", ebrIntegral);
+  fprintf(fp,"         TimePe:           %10.5lf [s]\n",  eTimePe);
+  fprintf(fp,"         IntegralSinglet0: %10.5lf [Vs]\n", eIntegralSinglet0);
+  fprintf(fp,"         IntegralSinglet1: %10.5lf [Vs]\n", eIntegralSinglet1);
+  fprintf(fp,"         CR:               %10.5lf\n",      eCR);
+  fprintf(fp,"         CRPe:             %10.5lf\n",      eCRPe);
+  fprintf(fp,"         CRPeS:            %10.5lf\n",      eCRPeS);
+}
+
+// void ArPMT :: DeleteRecoPMT()
+// {
+//   if (eRecoPMT) {
+//     delete eRecoPMT;
+//     eRecoPMT=0;
+//   }
+// }
+
+
+void ArPMT :: SetTree(TFile *f, Int_t i)
+{
+  if (eType=="Acqiris")
+    {
+      eTree = (TTree*)f->Get("AcqirisData");
+      TString branchname = "branch";
+      branchname += i;
+      eBranch = eTree->GetBranch(branchname.Data());
+      eBranch->SetAddress(RawData.fArray);
+      if (eBranch)
+	if (ArDBLEVEL>=2) printf("PMT %d (%s) has %lld events\n",eID,eName.Data(),eBranch->GetEntries());
+    }
+  else if (eType=="CAEN")
+    {
+      eTree = (TTree*)f->Get("CAENData");
+      TString branchname = "branch";
+      branchname += i;
+      eBranch = eTree->GetBranch(branchname.Data());
+      eBranch->SetAddress(RawData.fArray);
+      if (eBranch)
+	if (ArDBLEVEL>=2) printf("PMT %d (%s) has %lld events\n",eID,eName.Data(),eBranch->GetEntries());
+    }
+  else
+    {
+      Char_t c = 'A';
+      TString foldername = "tree_dat"; 
+      foldername += c+i;
+      TString treename = "dat";
+      treename += c+i;
+      eTree = (TTree*)f->Get(foldername.Data());
+      eTree->SetBranchAddress(treename.Data(),RawData.fArray);
+      if (eTree)
+	if (ArDBLEVEL>=2) printf("PMT %d (%s) has %lld events\n",eID,eName.Data(),eTree->GetEntries());
+    }
+}
+
+
+Int_t ArPMT :: LoadEvent(Int_t i)
+{
+  // Returns 0 if no more events
+
+  if (eType=="Acqiris"||eType=="CAEN")
+    return(eBranch->GetEntry(i));
+  else
+    return(eTree->GetEntry(i));
+}
+
+void ArPMT :: SetPedestalTimeRange(Int_t start, Int_t stop)
+{
+  // Sets ePedTimeMin and ePedTimeMax with given values
+  ePedTimeMin = start;
+  ePedTimeMax = stop;
+  ePedTimePe = stop - start;
+}
+
+void ArPMT :: RawEvaluatePedestal()
+{
+  // Evaluates pedestal in the time range [ePedTimeMin,ePedTimeMax[
+  // by simply evaluating mean and RMS of data
+  // Value of ePedMin, ePedMax, ePedMean, ePedSigma are evaluated
+
+  ePedMean=0;
+  ePedSigma=0;
+
+  ePedMin=Data[ePedTimeMin];
+  ePedMax=Data[ePedTimeMin];
+  
+  for (Int_t i=ePedTimeMin;i<ePedTimeMax;i++){
+    ePedMean += Data[i];
+    ePedSigma  += Data[i]*Data[i];
+    if (Data[i] > ePedMax) ePedMax=Data[i];
+    if (Data[i] < ePedMin) ePedMin=Data[i];
+  }
+
+  ePedMean  /= (ePedTimeMax-ePedTimeMin);
+  ePedSigma /= (ePedTimeMax-ePedTimeMin);
+  ePedSigma -= ePedMean*ePedMean;
+  ePedSigma  = sqrt(ePedSigma);
+
+  ePedTimePe = ePedTimeMax-ePedTimeMin;
+}
+
+
+void ArPMT :: EvaluatePedestalWithPhotonSuppression()
+{
+  // Evaluates pedestal in the time range [ePedTimeMin,ePedTimeMax[
+  // by using the method of photon suppression
+  // Value of ePedMin, ePedMax, ePedMean, ePedSigma are evaluated
+
+  if (ArDBLEVEL>=4) printf("PMT: %d\n",eID);
+
+  Double_t TMARGIN = (int)(ArConf->PedPeakFindingTimeMargin/ArConf->SampleSize);
+  Float_t MINREDRATE = 0.01;
+  Float_t SIGMA = ArConf->PedPeakFindingSigmaThreshold;
+  Int_t DISENTANGLE_TIME = (int)(ArConf->PedPeakFindingDisentangleTime/ArConf->SampleSize);
+  Int_t MINCOUNTEDSAMPLES = 50;
+
+  char *mask = (char *)malloc(ePedTimeMax*sizeof(char));
+
+  Double_t EasyPed = 0.;
+  Double_t EasyRMS = 0.;
+  
+  for (int i=ePedTimeMin;i<ePedTimeMax;i++){
+    mask[i] = 1;
+    EasyPed += Data[i];
+    EasyRMS += Data[i]*Data[i];
+  }
+
+  ePedIntegral = EasyPed;
+ 
+  EasyPed /= (ePedTimeMax-ePedTimeMin);
+  EasyRMS /= (ePedTimeMax-ePedTimeMin);
+  EasyRMS -= EasyPed*EasyPed;
+  EasyRMS  = sqrt(EasyRMS);
+
+  ePedTimePe = ePedTimeMax-ePedTimeMin;
+  
+  if (ArDBLEVEL>=4) printf("Pedestal: %f, sigma: %f\n",EasyPed,EasyRMS);
+  
+  int step=0;
+  int countedsamples;
+  int countedsamples_before = ePedTimeMax-ePedTimeMin;
+  float reductionrate=1.;
+
+  Int_t ntop,nbottom;
+
+  Int_t countedsamplesPe=0;
+  
+  while (reductionrate>MINREDRATE&&ePedTimePe>MINCOUNTEDSAMPLES) {
+
+    if (ArDBLEVEL>=4) printf("Step: %d\n",step);
+    
+    // building the mask
+    ntop = 0;
+    nbottom = 0;
+
+    int itime=ePedTimeMin-DISENTANGLE_TIME;
+    int wasover=0,isover=0;
+    float nsigma;
+    for (int i=ePedTimeMin;i<ePedTimeMax;i++) {
+      nsigma = fabs(Data[i]-EasyPed)/EasyRMS;
+      isover = nsigma>SIGMA;
+      if (isover) mask[i]=0;
+      if (isover&&!wasover) {
+	//	ePedNpe = 0;
+	//	if (i-itime>=DISENTANGLE_TIME) { printf("%d %d\n",i,itime); if (Data[i]>EasyPed+SIGMA*EasyRMS) ntop++; else nbottom++; }
+	if (i-itime>=DISENTANGLE_TIME) { if (Data[i]>EasyPed+SIGMA*EasyRMS) ntop++; else nbottom++; }
+	wasover=isover;
+	if (ArDBLEVEL>=4) printf("Time over threshod: %d, value: %f, %f times sigma, ntop: %d, nbottom: %d\n",i,Data[i],nsigma,ntop,nbottom);
+	for (int j=i;j>i-(int)(TMARGIN*sqrt(nsigma))&&j>0;j--) mask[j]=0;
+      }
+      else if (!isover&&wasover) {
+	wasover=isover;
+	if (ArDBLEVEL>=4) printf("Time under threshod: %d, value: %f, %f times sigma\n",i,Data[i],nsigma);
+	for (int j=i;j<i+(int)(TMARGIN*sqrt(nsigma))&&j<ePedTimeMax;j++) mask[j]=0;
+	itime = i;
+      }
+    }
+    
+    // evaluating the pedestal according to the mask
+    
+    countedsamples=0;
+    EasyPed = 0.;
+    EasyRMS = 0.;
+
+    ePedMin=Data[ePedTimeMin];
+    ePedMax=Data[ePedTimeMin];
+
+    for (int i=ePedTimeMin;i<ePedTimeMax;i++)
+      if (mask[i]) {
+	countedsamples++;
+	EasyPed += Data[i];
+	EasyRMS += Data[i]*Data[i];
+
+	if (Data[i] > ePedMax) ePedMax=Data[i];
+	if (Data[i] < ePedMin) ePedMin=Data[i];
+      }
+
+
+    //    ePedIntegralPe = ePedIntegral - EasyPed;
+
+    EasyPed /=  countedsamples;
+    EasyRMS /=  countedsamples;
+    EasyRMS -=  EasyPed*EasyPed;
+    EasyRMS = sqrt(EasyRMS);
+
+//     ePedIntegralPe = 0;
+//     countedsamplesPe=0;
+//     Int_t startintegrate = 0;
+//     for (int i=ePedTimeMin;i<ePedTimeMax;i++)
+//       if (!mask[i]&&startintegrate) {
+// 	countedsamplesPe++;
+// 	ePedIntegralPe += Data[i];	
+//       } else if (mask[i]) startintegrate=1;
+
+    ePedIntegralPe = 0;
+    countedsamplesPe=0;
+    Int_t startintegrate = 0;
+    for (int i=ePedTimeMin;i<(ePedTimeMax+ePedTimeMin)/2;i++)
+      if (!mask[i]&&startintegrate) {
+	countedsamplesPe++;
+	ePedIntegralPe += Data[i];	
+      } else if (mask[i]) startintegrate=1;
+    startintegrate = 0;
+    for (int i=ePedTimeMax-1;i>=(ePedTimeMax+ePedTimeMin)/2;i--)
+      if (!mask[i]&&startintegrate) {
+	countedsamplesPe++;
+	ePedIntegralPe += Data[i];	
+      } else if (mask[i]) startintegrate=1;
+
+    ePedTimePe = ePedTimeMax-ePedTimeMin-countedsamplesPe;
+
+    reductionrate = fabs(countedsamples-countedsamples_before)/(float)countedsamples;
+
+    if (ArDBLEVEL>=4) {
+      printf("Remaining area: %d over %d\n",countedsamples,ePedTimeMax-ePedTimeMin);
+      printf("Step variation: %.2f\n",reductionrate*100.);
+      printf("Pedestal: %f, sigma: %f\n",EasyPed,EasyRMS);
+    }
+
+    countedsamples_before = countedsamples;
+    step++;
+  }
+
+  ePedMean = EasyPed;
+  ePedSigma = EasyRMS;
+  ePedNpe = ntop - nbottom;
+  ePedIntegral -= EasyPed*(ePedTimeMax-ePedTimeMin);
+  //  ePedIntegralPe       -= EasyPed*(ePedTimeMax-ePedTimeMin - countedsamples);
+  ePedIntegralPe       -= EasyPed*countedsamplesPe;
+
+  //  printf("Pedestal integral: %f, pe integral: %f,   %d\n",ePedIntegral,ePedIntegralPe,countedsamplesPe);
+
+  // fine evaluation of the pedestal according to the final mask
+  
+//   for (int i=ePedTimeMin;i<ePedTimeMax;i++)
+//     if (mask[i])
+//       Pedestal[det]->Fill(Data[i]);
+  
+//   myGaus[det]->SetParameters(100,EasyPed,EasyRMS);
+//   Pedestal[det]->Fit(myGaus[det],"Q0","", EasyPed - 3*EasyRMS, EasyPed + 3*EasyRMS);
+//   myGaus[det]->GetParameters(Var_myGausParam);
+  
+//   // storing final results
+//   Var_EasyPed[det][Var_LoadedEvent]=Var_myGausParam[1];
+//   Var_EasyRMS[det][Var_LoadedEvent]=Var_myGausParam[2];
+  
+  free(mask);
+
+  if (ArDBLEVEL>=4)
+    printf("Pedestal: steps %d counted samples %d over %d pe %d\n",step,ePedTimePe,ePedTimeMax-ePedTimeMin,ePedNpe);
+
+}
+
+
+void ArPMT :: EvaluatePedestalWithGaussianFit()
+{
+  // Phase II: Re-evaluating mean and sigma with a gaussian fit
+
+//   TH1F hPedestal("","",(ePedTimeMax-ePedTimeMin)/10,ePedMin,ePedMax);
+//   for (Int_t i=ePedTimeMin;i<ePedTimeMax;i++) hPedestal.Fill(Data[i]);
+
+//   TF1  fMyGaus("fMyGaus","gaus",ePedMin,ePedMax);
+//   fMyGaus.SetParameters((ePedTimeMax-ePedTimeMin)/sqrt(2*M_PI*ePedSigma*ePedSigma),ePedMean,ePedSigma);
+//   hPedestal.Fit(&fMyGaus,"0","",ePedMean - 5*ePedSigma,ePedMean + 2*ePedSigma);
+//   Double_t GausParam[3];
+//   fMyGaus.GetParameters(GausParam);
+//   ePedMean = GausParam[1];
+//   ePedSigma = GausParam[2];
+//   ePedChi2 = fMyGaus.GetChisquare()/fMyGaus.GetNDF();
+
+  TString name="Pedestal";
+  name+=eID;
+  hPedestal = new TH1F(name.Data(),name.Data(),(ePedTimeMax-ePedTimeMin)/100,ePedMin,ePedMax);
+  for (Int_t i=ePedTimeMin;i<ePedTimeMax;i++) hPedestal->Fill(Data[i]);
+
+  fMyGaus = new TF1("fMyGaus","gaus",ePedMin,ePedMax);
+  fMyGaus->SetParameters((ePedTimeMax-ePedTimeMin)/sqrt(2*M_PI*ePedSigma*ePedSigma),ePedMean,ePedSigma);
+  hPedestal->Fit(fMyGaus,"Q","",ePedMean - 5*ePedSigma,ePedMean + 2*ePedSigma);
+  Double_t GausParam[3];
+  fMyGaus->GetParameters(GausParam);
+  ePedMean = GausParam[1];
+  ePedSigma = GausParam[2];
+  ePedChi2 = fMyGaus->GetChisquare()/fMyGaus->GetNDF();
+
+  delete fMyGaus;
+  delete hPedestal;
+}
+
+
+void ArPMT :: FindPeak(Int_t start, Int_t stop)
+{
+  // Finds peak in data. Fills ePeakTime and ePeakValue
+  // Input variable timemargin allows to reduce the time window for the peak evaluation
+
+  if (start<0) start = 0;
+  if (stop>Data.GetSize()) stop = Data.GetSize();
+
+  ePeakTime=start;
+  ePeakValue=Data[start];
+
+  for (Int_t time=start;time<stop;time++){
+    if ( Data[time] > ePeakValue){
+      ePeakTime = time;
+      ePeakValue = Data[time];
+    }
+  }
+}
+
+// void ArPMT :: FindPeaks(Int_t start, Int_t stop)
+// {
+//   // Finds peak in data.
+
+//   if (start<0) start = 0;
+//   if (stop>Data.GetSize()) stop = Data.GetSize();
+
+//   eNPeaks=0;
+//   Peaks.Reset();
+
+//   bool in_a_peak = false;
+//   double max=0;
+  
+//   int N_FOLLOWERS = 5; //TODO: external 
+//   int NSIGMA = 5; //TODO: external
+
+//   for (Int_t time=start;time<stop;time++){
+
+//     if(in_a_peak && Data[time] > max) {
+//       Peaks.AddAt(time, eNPeaks);
+//       max = Data[time];	  
+//       continue;
+//     }
+
+//     double sd = TMath::RMS(N_FOLLOWERS, &Data.GetArray()[time]);
+//     if( sd > ePedSigma * NSIGMA) {
+//       if(!in_a_peak) {
+// 	Peaks.AddAt(time, eNPeaks);
+// 	in_a_peak = true;
+// 	max = Data[time];
+// 	//	cout<<eID<<" "<<eNPeaks<<" "<<time<<" "<<Data[time+N_FOLLOWERS]<<"\t"<<sd<<" "<<ePedSigma*NSIGMA<<endl;
+//       }
+//       else {
+// 	if(Data[time] > max) {
+// 	  Peaks.AddAt(time, eNPeaks);
+// 	  max = Data[time];	  
+// 	}
+//       }
+//     }
+//     else {
+
+//       if(in_a_peak) {
+// 	in_a_peak = false;
+// 	eNPeaks++;
+// 	max = 0;
+//       }
+//     }
+    
+//   }
+// }
+
+void ArPMT :: FindPeaks(Int_t start, Int_t stop) //luillo
+{
+  // Finds peaks in data.
+  // inspired from https://ccrma.stanford.edu/~jos/sasp/Matlab_listing_findpeaks_m.html
+  ebrIntegral.clear();
+  ebrAmplitude.clear();
+  ebrPeakTime.clear();
+
+  if (start<0) start = 0;
+  if (stop>Data.GetSize()) stop = Data.GetSize();
+
+  vector<double> temp( Data.GetArray(), Data.GetArray()+Data.GetSize());
+  vector<double>::iterator it;
+    
+  int NSIGMA = 10; //TODO: external
+
+  int minwidth = 3; //  A peak is rejected if its width is less than minwidth samples wide(default=1),
+  int maxNrej = 10;
+
+  double minpeak = ePedMean + ePedSigma * NSIGMA; // A peak is rejected if less than minpeak in magnitude (default=min(data)).
+  int maxpeaks = temp.size();
+  int len      = temp.size();
+
+  int nrej=0;
+  eNPeaks=0;
+  Peaks.Reset();
+  Peaks.Set( len );
+
+  bool in_a_peak = false;
+  double pamp, camp, dmin;
+  double lamp, uamp;
+ 
+  while(eNPeaks < maxpeaks) {
+
+    it = max_element(temp.begin() + start, temp.begin() + stop);
+    int ploc = int( it-temp.begin() );
+    pamp = *it;
+     
+    if(pamp < minpeak) {
+      if (ArDBLEVEL>=4) {
+  	printf("min amp reached\n",pamp,minpeak);
+      }
+      break;
+    }
+
+    // upper limit of the peak waveform
+    int ulim = TMath::Min(ploc+1, stop);
+    for(;ulim<stop; ulim++) {
+      uamp = temp.at(ulim);
+      //        if(uamp < temp.at(ulim + 1) 
+      if(uamp < 0.05*temp.at(ploc) 
+       	 ) break;
+    }
+    ulim--;
+
+    // lower limit of the peak waveform
+    int llim = TMath::Max(start, ploc-1);
+    for(;llim>start; llim--) {
+      lamp = temp.at(llim);
+      //   if(lamp < temp.at(llim - 1) //&& lamp < ePedMean
+	if(lamp < 0.05*temp.at(ploc) 
+	   ) break;
+    }
+    llim++;
+
+    //Remove the peak
+    double brSum = 0;
+    double min = TMath::Min(lamp, uamp);
+    for(int i=llim; i<=ulim; i++)  {   
+      brSum      +=temp.at(i);  // Calculate the integral of the peak (luillo/br)
+      temp.at(i)  = min;        // Remove the peak
+    }
+    // if(ebrIntegral<0)cout << "FindPeaks(br) ---- brIntegral= " << ebrIntegral << endl;
+    
+    //Reject peaks which are too narrow (indicated by zero loc and amp)
+    double pwid = ulim - llim +1;
+    if(pwid > minwidth) {
+      Peaks.AddAt(ploc, eNPeaks);
+      //TODO: array of pwid???
+      eNPeaks++;
+      nrej = 0;
+      if (ArDBLEVEL>=4) {
+	cout<<"Peak found "<<eNPeaks<<" "<<pamp<<" "<<ploc<<" "<<pwid<<endl;
+      }
+    
+      // Filling the info for each Peak
+      ebrIntegral.push_back(brSum);
+      ebrAmplitude.push_back(pamp);
+      ebrPeakTime.push_back(ploc);
+    }
+    else {
+      nrej++;
+      if (nrej >= maxNrej) {
+	if (ArDBLEVEL>=2)
+	  cout<<"*** findpeaks: giving up ("<<maxNrej<<" rejected peaks in a row)"<<endl;
+	break;
+      }
+    }
+  }
+}
+
+void ArPMT :: CheckPeakSaturation()
+{
+  // Check if the main peak is affected by saturation
+  // This is done by checking if in next 20 ns, more than 50% has the same value than the main peak value
+  // if the peak is saturated, then ePeakIsSaturated is 1
+
+  ePeakIsSaturated = 0;
+
+  Int_t SaturationMargin = 20; // TODO: to be moved among the configuration variables
+  Double_t MinSaturationPercentage = 0.20; // TODO: to be moved among the configuration variables
+
+  Double_t SaturationPercentage = 0.;
+  for (Int_t time=ePeakTime;time<ePeakTime+SaturationMargin;time++)
+    if (fabs(Data[time]-ePeakValue)<1.0E-5) SaturationPercentage++;
+      //{ SaturationPercentage++; printf("%f %f %f\n",Data[time],SaturationPercentage,ePeakValue); }
+
+  SaturationPercentage /= SaturationMargin;
+
+  if (SaturationPercentage>MinSaturationPercentage) ePeakIsSaturated = 1;
+}
+
+
+
+// void ArPMT :: CountPeaks(Int_t start, Int_t stop)
+// {
+//   // Counts all peaks in data higher than a given fraction of the highest peak
+
+//   eNPeaks=0;
+//   Int_t count = 1;
+//   for (Int_t time=start;time<stop;time++)
+//     if (Data[time]>ePeakFraction*ePeakValue) { 
+//       if (count) eNPeaks++;
+//       count=0;
+//     }
+//     else count=1;
+
+// }
+
+
+
+void ArPMT :: EvaluatePeakStartTime(Int_t margin)
+{
+  // Evaluates ePeakStartTime depending on the value of ePeakTime, ePedMean and ePedSigma
+  // If these values are correctly evaluated, ePeakStartTime corresponds also to the time
+  // where signal starts
+  // ePedTimeMin is left unchanged
+
+  for (Int_t time=ePeakTime;time>=0;time--)
+    if ( Data[time] < ePedMean+3*ePedSigma) {
+      ePeakStartTime=time-margin;
+      if (ePeakStartTime<0) ePeakStartTime=0;
+      break;
+    }
+
+}
+
+
+
+void ArPMT :: EvaluateIntegral(Double_t singletintegrationtime, Double_t tmax)
+{
+  Int_t singletwidth = (int)(singletintegrationtime/ArConf->SampleSize);
+
+  eIntegralSinglet0 = 0.;
+  for (Int_t time=ePeakStartTime;time<ePeakTime && time<Data.GetSize();time++)
+    eIntegralSinglet0 += Data[time];
+
+  eIntegralSinglet1 = 0.;
+  for (Int_t time=ePeakTime;time<ePeakTime+singletwidth && time<Data.GetSize();time++)
+    eIntegralSinglet1 += Data[time];
+
+  Int_t tend;
+  if (tmax<0.)
+    tend = Data.GetSize();
+  else {
+    tend = ePeakTime+(int)(tmax/ArConf->SampleSize);
+    if (tend>Data.GetSize()) tend = Data.GetSize();
+  }
+  
+  eIntegral = eIntegralSinglet0 + eIntegralSinglet1;
+  for (Int_t time=ePeakTime+singletwidth;time<tend;time++)
+    eIntegral += Data[time];
+
+  eCR    = (eIntegralSinglet0 + eIntegralSinglet1) / eIntegral;
+  eCRPe  = (eIntegralSinglet0 + eIntegralSinglet1) / eIntegralPe;
+  eCRPeS = (eIntegralSinglet0 + eIntegralSinglet1) / eIntegralPeS;
+}
+
+
+
+
+void ArPMT :: CountPeaks(Double_t tmax, Double_t sigma)
+{
+  Int_t start = ePeakStartTime;
+  Int_t stop = ePeakTime + (int)(tmax/ArConf->SampleSize);
+
+  if (stop>Data.GetSize()) stop = Data.GetSize();
+
+  if (ArDBLEVEL>=4) {
+    printf("PMT: %d\n",eID);
+    printf("Counting peaks in the range [%d,%d]\n",start,stop);
+    printf("Used sigma: %f\n",sigma);
+  }
+  
+  Double_t TMARGIN = ArConf->PeakFindingTimeMargin;
+  Float_t MINREDRATE = 0.01;
+  Float_t SIGMA = ArConf->PeakFindingSigmaThreshold;
+  Int_t DISENTANGLE_TIME = (int)(ArConf->PeakFindingDisentangleTime/ArConf->SampleSize);
+
+  char *mask = (char *)malloc(stop*sizeof(char));
+
+  for (int i=start;i<stop;i++) mask[i] = 1;
+
+  Int_t ntop,nbottom;
+
+  // building the mask
+  ntop = 0;
+  nbottom = 0;
+  
+  int itime=start-DISENTANGLE_TIME;
+  int wasover=0,isover=0;
+  float nsigma;
+  for (int i=start;i<stop;i++) {
+    nsigma = fabs(Data[i]-ePedMean)/sigma;
+    isover = nsigma>SIGMA;
+    if (isover) mask[i]=0;
+    if (isover&&!wasover) {
+      if (i-itime>=DISENTANGLE_TIME) { if (Data[i]-ePedMean>SIGMA*sigma) ntop++; else nbottom++; }
+      wasover=isover;
+      if (ArDBLEVEL>=4) printf("Time over threshod: %d, value: %f, %f times sigma, ntop: %d, nbottom: %d\n",i,Data[i],nsigma,ntop,nbottom);
+      //      for (int j=i;j>i-(int)(TMARGIN*nsigma)&&j>0;j--) mask[j]=0;
+      for (int j=i;j>i-(int)(TMARGIN)&&j>0;j--) mask[j]=0;
+    }
+    else if (!isover&&wasover) {
+      wasover=isover;
+      if (ArDBLEVEL>=4) printf("Time under threshod: %d, value: %f, %f times sigma\n",i,Data[i],nsigma);
+      //      for (int j=i;j<i+(int)(TMARGIN*nsigma)&&j<stop;j++) mask[j]=0;
+      for (int j=i;j<i+(int)(TMARGIN)&&j<stop;j++) mask[j]=0;
+      itime = i;
+    }
+  }
+    
+//     eIntegralPe = 0;
+//     countedsamplesPe=0;
+//     Int_t startintegrate = 0;
+//     for (int i=start;i<(stop+start)/2;i++)
+//       if (!mask[i]&&startintegrate) {
+// 	countedsamplesPe++;
+// 	eIntegralPe += Data[i];	
+//       } else if (mask[i]) startintegrate=1;
+//     startintegrate = 0;
+//     for (int i=stop-1;i>=(stop+start)/2;i--)
+//       if (!mask[i]&&startintegrate) {
+// 	countedsamplesPe++;
+// 	eIntegralPe += Data[i];	
+//       } else if (mask[i]) startintegrate=1;
+
+  eIntegralPe = 0.;
+  Int_t countedsamples=0;
+  for (int i=start;i<stop;i++)
+    if (!mask[i]) {
+      countedsamples++;
+      eIntegralPe += Data[i];	
+    }
+  
+  eNpe = ntop - nbottom;
+  eIntegralPe -= ePedMean*countedsamples;
+  eTimePe = countedsamples;
+  
+  eIntegralPeS = eIntegralPe;
+
+  if (ArDBLEVEL>=4) {
+    printf("Integration interval: %d over %d\n",countedsamples,stop-start);
+    printf("Integral: %f\n",eIntegralPe);
+  }
+  
+  free(mask);
+}
+
+
+void ArPMT :: FFT(TArrayD &data, unsigned long nn, Int_t isign)
+{
+  // Code based on Numerical Recipes
+  // Replaces data[1..2*nn] by its discrete Fourier transform, 
+  // if isign is input as 1; or replaces data[1..2*nn] by nn 
+  // times its inverse discrete Fourier transform, if isign is 
+  // input as −1. data is a complex array of length nn or, 
+  // equivalently, a real array of length 2*nn. nn MUST
+  // be an integer power of 2 (this is not checked for!).
+
+  unsigned long n,mmax,m,j,istep,i;
+  double wtemp,wr,wpr,wpi,wi,theta; // Double precision for the trigonometric
+  float tempr,tempi;                // recurrences.
+  n=nn << 1;
+  j=1;
+  for (i=1;i<n;i+=2) {              // This is the bit-reversal section of the
+    if (j > i) {                    // routine.
+      SWAP(data[j],data[i]);        // Exchange the two complex numbers.
+      SWAP(data[j+1],data[i+1]);
+    }
+    m=nn;
+    while (m >= 2 && j > m) {
+      j -= m;
+      m >>= 1;
+    }
+    j += m;
+  }
+  // Here begins the Danielson-Lanczos section of the routine.
+  mmax=2;
+  while (n > mmax) { // Outer loop executed log2 nn times.
+    istep=mmax << 1;
+    theta=isign*(6.28318530717959/mmax); // Initialize the trigonometric recurrence.
+    wtemp=sin(0.5*theta);
+    wpr = -2.0*wtemp*wtemp;
+    wpi=sin(theta);
+    wr=1.0;
+    wi=0.0;
+    for (m=1;m<mmax;m+=2) {         // Here are the two nested inner loops.
+      for (i=m;i<=n;i+=istep) {
+	j=i+mmax;                   // This is the Danielson-Lanczos formula:
+	tempr=wr*data[j]-wi*data[j+1];
+	tempi=wr*data[j+1]+wi*data[j];
+	data[j]=data[i]-tempr;
+	data[j+1]=data[i+1]-tempi;
+	data[i] += tempr;
+	data[i+1] += tempi;
+      }
+      wr=(wtemp=wr)*wpr-wi*wpi+wr;  // Trigonometric recurrence.
+      wi=wi*wpr+wtemp*wpi+wi;
+    }
+    mmax=istep;
+  }
+}
+
+
+void ArPMT :: FilterBackground(Int_t cutsize)
+{
+  Int_t power = (Int_t)(log((Double_t)Data.GetSize())/log(2.));
+  Int_t NN = (Int_t) TMath::Power(2.,(Double_t)power);
+  
+  TArrayD d(NN*2+1);
+  for (Int_t i=0;i<NN;i++) { d[1+i*2]=Data[i]; d[2+i*2]=0.; }
+  FFT(d,NN,1);
+
+  for (Int_t i=1;i<NN*2+1;i++)
+    if (i>=NN-(2*cutsize-1)&&i<=NN+(2*cutsize)) d[i]=0;
+  
+  FFT(d,NN,-1);
+
+  for (Int_t i=0;i<NN;i++)
+    Data[i]=d[1+i*2]/NN;
+}
+
+
+void ArPMT :: ScaleData(Double_t scale)
+{
+  for (int i=0;i<Data.GetSize();i++)
+    Data[i] *= scale;
+}
+
+
+void ArPMT :: PrintRawData(FILE *fp)
+{
+  for (int i=0;i<RawData.GetSize();i++)
+    fprintf(fp,"%d %d %d\n",eID,i,RawData[i]);
+}
+
+
+void ArPMT :: PrintData(FILE *fp)
+{
+  for (int i=0;i<Data.GetSize();i++)
+    fprintf(fp,"%d %d %lf %lf\n",eID,i,Data[i],DataError[i]);
+}
+
+
+void ArPMT :: ClearHistograms()
+{
+  if (hPedestal) {
+    hPedestal->Delete();
+  }
+  if (fMyGaus) {
+    fMyGaus->Delete();
+  }
+}

@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/ArDMrepos/!svn/ver/298/LRAnalysis/devel/src/ArDisplay
+END
+ArDisplay.hh
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/ArDMrepos/!svn/ver/282/LRAnalysis/devel/src/ArDisplay/ArDisplay.hh
+END
+ArDisplay.cc
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/ArDMrepos/!svn/ver/298/LRAnalysis/devel/src/ArDisplay/ArDisplay.cc
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/ArDMrepos/!svn/ver/249/LRAnalysis/devel/src/ArDisplay/Makefile
+END

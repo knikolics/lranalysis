@@ -1,0 +1,182 @@
+#ifndef Ar_ArRun
+#define Ar_ArRun
+
+#include <iostream>
+#include <fstream>
+#include <string>
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <TROOT.h>
+#include <TClonesArray.h>
+#include <TArrayI.h>
+
+using namespace std;
+
+#include "ArPMT.hh"
+#include "ArConfiguration.hh"
+
+class ArDetector;
+class ArConfiguration;
+
+
+class ArRun : public TObject {
+
+private:
+
+  TTree   *eTree;
+  TBranch *eBranchTTT;
+  TBranch *eBranchDelay;
+  TBranch *eBranchNSamples;
+
+  TClonesArray *ePMTs;
+
+  ArPMT *eVPMT;
+
+  TString ePath;
+  Int_t eRunNumber;
+  Float_t eTime;
+  TString eCurrentFileName;
+  TFile *eCurrentFile;
+
+  Int_t eTotalNumberOfFiles;
+  Int_t eNumberOfEventsInFile;
+
+  Int_t eCurrentFileNumber;  // Number of current file in the files set
+  Int_t eCurrentEventNumber; // Number of current event inside the current file
+
+  Int_t eNumberOfSamples;    // Number of samples for each channel
+
+  Int_t eDisMajThresholds;   // ???
+  Int_t eTriggerDelay;       // ???
+  Int_t eTriggerType;        // 0 - Calibration, trigger on the pulser
+                             // 1 - Internal Trigger on Majority of [n] (PMTs over threshold)
+                             // 2 - External trigger
+
+  time_t eAcquisitionTime;         // Aquisition time of the run
+
+  Long64_t eTTT;         // Event timestamp
+  Int_t eDelay[16];      // Delay among PMTs for each event
+  Int_t eNSamples;       // Number of samples per event in each PMT
+
+public:
+
+  ArRun();
+  ArRun(const char *path, Int_t runnumber);
+  ~ArRun();
+
+  // Reset private variables
+  void Reset();
+
+  TString Path()                { return ePath; }
+  Int_t   RunNumber()           { return eRunNumber; }
+  Float_t Time()                { return eTime; }
+  Int_t   TotalNumberOfFiles()  { return eTotalNumberOfFiles; }
+  Int_t   NumberOfEventsInFile(){ return eNumberOfEventsInFile; }
+  Int_t   CurrentFileNumber()   { return eCurrentFileNumber; }
+  Int_t   CurrentEventNumber()  { return eCurrentEventNumber; }
+  Int_t   NumberOfSamples()     { return eNumberOfSamples; }
+  Int_t   DisMajThresholds()    { return eDisMajThresholds; }
+  Int_t   TriggerDelay()        { return eTriggerDelay; }
+  Int_t   TriggerType()         { return eTriggerType; }
+  Int_t   AcquisitionTime()     { return eAcquisitionTime; }
+
+  Long64_t TTT()                { return eTTT; }
+  Int_t   Delay(Int_t i)        { return eDelay[i]; }
+  Int_t   NSamples()            { return eNSamples; }
+
+  void SetPath(const char *path)    { ePath = path; }
+  void SetRunNumber(Int_t i)        { eRunNumber = i; }
+  void SetTime(Float_t f)           { eTime = f; }
+  void SetTotalNumberOfFiles(Int_t i)  { eTotalNumberOfFiles=i; }
+  void SetNumberOfEventsInFile(Int_t i){ eNumberOfEventsInFile=i; }
+  void SetCurrentFileNumber(Int_t i)   { eCurrentFileNumber=i; }
+  void SetCurrentEventNumber(Int_t i)  { eCurrentEventNumber=i; }
+  void SetNumberOfSamples(Int_t i)     { eNumberOfSamples=i; }
+  void SetDisMajThresholds(Int_t i)    { eDisMajThresholds=i; }
+  void SetTriggerDelay(Int_t i)        { eTriggerDelay=i; }
+  void SetTriggerType(Int_t i)         { eTriggerType=i; }
+  void SetAcquisitionTime(Int_t i)     { eAcquisitionTime=i; }
+
+  void SetTTT(Long64_t i)              { eTTT=i; }
+  void SetDelay(Int_t ipmt, Int_t i)   { eDelay[ipmt]=i; }
+  void SetNSamples(Int_t i)            { eNSamples=i; }
+
+  void Print(FILE *fp = stdout);
+
+  // Adds a detector
+  ArPMT *AddPMT();
+  
+  // Returns the i-th detector
+  ArPMT *GetPMT(int i) const { return (ArPMT *)ePMTs->At(i); }
+
+  // Returns the detector array
+  TClonesArray *GetPMTs() const { return ePMTs; }
+
+  // Returns the number of detectors
+  Int_t NPMTs() const { return ePMTs ? ePMTs->GetEntriesFast() : 0; }
+  
+  // Returns the Virtual PMT
+  ArPMT *GetVPMT() { return eVPMT; }
+
+  // Set the Virtual PMT
+  void SetVPMT(ArPMT *pmt) { eVPMT = pmt; }
+
+  // Opens next file, accordind to eCurrentFileNumber
+  Int_t OpenNextFile();
+
+  // Opens file with number given as input
+  Int_t OpenFile(Int_t ifile);
+
+  // Closes current file
+  Int_t CloseFile();
+
+  // Reads data from next event
+  Int_t LoadNextEvent();
+
+  // Reads data from event given as input
+  Int_t LoadEvent(Int_t ievent);
+
+  // Reads data from file and event given as input
+  Int_t LoadEvent(Int_t ifile, Int_t ievent);
+
+  // Reads data from gloabal event number given as input
+  Int_t LoadEvent(Long64_t ilongevent);
+
+  // Read configuration from file
+  void LoadConfig();
+
+  // Set calibration...
+  void SetCalibration(Int_t ndetectors); // from default file
+  void SetCalibration(Int_t ndetectors, TString filename); // from a given file
+  void SetCalibration(TArrayD cal); // from a given array
+
+  // Set delay time from a given array
+  void SetDelay(TArrayI delay);
+
+  // Set pedestal level from a given array
+  void SetPedestal(TArrayD pedestal);
+
+  // Print configuration from file
+  void PrintConfig(FILE *fp = stdout);
+
+  // Print raw data without any modification
+  void PrintRawData(FILE *fp = stdout);
+
+  // Print data in double precision format. They could be modified by analysis program
+  void PrintData(FILE *fp = stdout);
+
+  // Print raw data (if level=0) or data (if level=1) to a file
+  void PrintData(Int_t level);
+
+  // Print calibrations
+  void PrintCalibration(FILE *fp = stdout);
+
+  // Print delay
+  void PrintDelay(FILE *fp = stdout);
+
+  ClassDef(ArRun,1);
+};
+
+#endif /* Ar_ArRun */

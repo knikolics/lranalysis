@@ -1,0 +1,235 @@
+#ifndef Ar_ArPMT
+#define Ar_ArPMT
+
+#include <iostream>
+#include <fstream>
+#include <string>
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <TROOT.h>
+#include <TClonesArray.h>
+#include <TArrayI.h>
+
+#include "ArRun.hh"
+#include "ArAnalysis.hh"
+#include "ArDetector.hh"
+#include "ArIO.hh"
+
+class ArPMT : public ArDetector {
+  
+private:
+  
+  // Channel related variables
+  Double_t eFullScale;
+  Double_t eOffset;
+  Long_t   eCoupling;
+  Long_t   eBandWidth;
+  Int_t    eDiscThrs;
+
+  // Analysis dependent variables
+  Double_t ePeakFraction;
+
+  // Calibration related variables
+  Double_t eCalibration;
+  Int_t    eDelay;
+  Double_t ePedestal;
+
+  // Analysis related variables
+  Int_t ePedTimeMin;
+  Int_t ePedTimeMax;
+  Double_t ePedMin;
+  Double_t ePedMax;
+  Double_t ePedMean;
+  Double_t ePedSigma;
+  Double_t ePedChi2;
+  Int_t    ePedNpe;
+  Double_t ePedIntegral;
+  Double_t ePedIntegralPe;
+  Int_t    ePedTimePe;
+
+  Int_t ePeakStartTime;
+  Int_t ePeakTime;
+  Double_t ePeakValue;
+  Int_t ePeakIsSaturated;
+  Int_t eNpe;
+
+  
+  Double_t eIntegral;    // Integrating everything
+  Double_t eIntegralPe;  // Integrating only around peaks
+  Double_t eIntegralPeS; // Integrating only around peaks of single channels (meaningfull only for VPMT)
+  Double_t eTimePe;
+  Double_t eIntegralSinglet0;
+  Double_t eIntegralSinglet1;
+  Double_t eCR;          // CR based on eIntegral
+  Double_t eCRPe;        // CR based on eIntegralPe
+  Double_t eCRPeS;       // CR based on eIntegralPeS (meaningfull only for VPMT)
+
+  // Raw data tree related variables
+  TBranch *eBranch;
+  TTree   *eTree;
+
+  TH1F *hPedestal;
+  TF1  *fMyGaus;
+
+
+public:
+  ArPMT();
+  ~ArPMT();
+
+  // br/luillo
+/*
+  vector <int>    ebrNpe;
+  vector <int>    ebrPeakTime;
+  vector <double> ebrIntegral;
+  vector <double> ebrAmplitude;	
+  */
+//  vector <int>    eNpe;
+  vector <int>    ePeakTimes;
+  vector <double> ePeakIntegral;
+  vector <double> ePeakAmplitude;
+
+  //test //khoi
+  //sum of integrals of all the peaks found in 1 event by individual PMT
+  //= sum of all entries in the vector ebrIntegral
+  double eSumPeakIntegralPMT;
+  //end test
+
+
+  TArrayS RawData;
+  TArrayD Data;
+  TArrayD DataError;
+
+  Int_t eNPeaks;
+  TArrayI Peaks;
+
+  void Reset();
+  
+  Double_t FullScale()    { return eFullScale;    }
+  Double_t Offset()       { return eOffset;       }
+  Long_t   Coupling()     { return eCoupling;     }
+  Long_t   BandWidth()    { return eBandWidth;    }
+  Int_t    DiscThrs()     { return eDiscThrs;     }
+
+  Double_t PeakFraction() { return ePeakFraction; }
+
+  Double_t Calibration()  { return eCalibration;  }
+  Int_t    Delay()        { return eDelay;        }
+  Double_t Pedestal()     { return ePedestal;     }
+
+  Int_t    PedTimeMin()       { return ePedTimeMin;       }
+  Int_t    PedTimeMax()       { return ePedTimeMax;       }
+  Double_t PedMin()           { return ePedMin;           }
+  Double_t PedMax()           { return ePedMax;           }
+  Double_t PedMean()          { return ePedMean;          }
+  Double_t PedSigma()         { return ePedSigma;         }
+  Double_t PedChi2()          { return ePedChi2;          }
+  Int_t    PedNpe()           { return ePedNpe;           }
+  Double_t PedIntegral()      { return ePedIntegral;      }
+  Double_t PedIntegralPe()    { return ePedIntegralPe;    }
+  Int_t    PedTimePe()        { return ePedTimePe;        }
+
+  Int_t PeakStartTime()       { return ePeakStartTime;    }
+  Int_t PeakTime()            { return ePeakTime;         }
+  Double_t PeakValue()        { return ePeakValue;        }
+  Int_t PeakIsSaturated()     { return ePeakIsSaturated;  }
+  Int_t NPeaks()              { return eNPeaks;           }
+  Int_t Npe()                 { return eNpe;              }
+  
+  //br/luillo
+//  vector <int>    Npe()     { return eNpe;            }
+  vector <int>    PeakTimes(){ return ePeakTimes;       }
+  vector <double> PeakIntegral(){ return ePeakIntegral;       }
+  vector <double> PeakAmplitude(){ return ePeakAmplitude;     }
+  double          SumPeakIntegralPMT(){ return eSumPeakIntegralPMT;};
+
+  Double_t Integral()         { return eIntegral;         }
+  Double_t IntegralPe()       { return eIntegralPe;       }
+  Double_t IntegralPeS()      { return eIntegralPeS;      }
+  Double_t TimePe()           { return eTimePe;           }
+  Double_t IntegralSinglet0() { return eIntegralSinglet0; }
+  Double_t IntegralSinglet1() { return eIntegralSinglet1; }
+  Double_t CR()               { return eCR;               }
+  Double_t CRPe()             { return eCRPe;             }
+  Double_t CRPeS()            { return eCRPeS;            }
+
+  TBranch *Branch()    { return eBranch;    }
+  TTree   *Tree()      { return eTree;      }
+
+  TH1F    *HPedestal()  { return hPedestal;  }
+
+  void SetFullScale(Double_t fullscale) { eFullScale=fullscale; }
+  void SetOffset(Double_t offset)       { eOffset=offset;       }
+  void SetCoupling(Long_t coupling)     { eCoupling=coupling;   }
+  void SetBandWidth(Long_t bandwidth)   { eBandWidth=bandwidth; }
+  void SetDiscThrs(Int_t discthrs)      { eDiscThrs=discthrs;   }
+
+  void SetCalibration(Double_t cal)     { eCalibration=cal;    }
+  void SetDelay(Int_t delay)            { eDelay=delay;        }
+  void SetPedestal(Double_t pedestal)   { ePedestal=pedestal;  }
+
+  void SetPeakFraction(Double_t d)      { ePeakFraction=d;     }
+
+  void SetPedTimeMin(Int_t i)           { ePedTimeMin=i;       }
+  void SetPedTimeMax(Int_t i)           { ePedTimeMax=i;       }
+  void SetPedMin(Double_t d)            { ePedMin=d;           }
+  void SetPedMax(Double_t d)            { ePedMax=d;           }
+  void SetPedMean(Double_t d)           { ePedMean=d;          }
+  void SetPedSigma(Double_t d)          { ePedSigma=d;         }
+  void SetPedChi2(Double_t d)           { ePedChi2=d;          }
+  void SetPedNpe(Int_t i)               { ePedNpe=i;           }
+  void SetPedIntegral(Double_t d)       { ePedIntegral=d;      }
+  void SetPedIntegralPe(Double_t d)     { ePedIntegralPe=d;    }
+  void SetPedTimePe(Int_t i)            { ePedTimePe=i;        }
+
+  void SetPeakStartTime(Int_t i)        { ePeakStartTime=i;    }
+  void SetPeakTime(Int_t i)             { ePeakTime=i;         }
+  void SetPeakValue(Double_t d)         { ePeakValue=d;        }
+  void SetPeakIsSaturated(Int_t d)      { ePeakIsSaturated=d;  }
+  void SetNPeaks(Int_t i)               { eNPeaks=i;           }
+  void SetNpe(Int_t i)                  { eNpe=i;              }
+  void SetIntegral(Double_t d)          { eIntegral=d;         }
+  void SetIntegralPe(Double_t d)        { eIntegralPe=d;       }
+  void SetIntegralPeS(Double_t d)       { eIntegralPeS=d;      }
+  void SetTimePe(Double_t d)            { eTimePe=d;           }
+  void SetIntegralSinglet0(Double_t d)  { eIntegralSinglet0=d; }
+  void SetIntegralSinglet1(Double_t d)  { eIntegralSinglet1=d; }
+  void SetCR(Double_t d)                { eCR=d;               }
+  void SetCRPe(Double_t d)              { eCRPe=d;             }
+  void SetCRPeS(Double_t d)             { eCRPeS=d;            }
+
+  void SetBranch(TBranch *b) { eBranch=b; }
+  void SetTree(TTree *t) { eTree=t; }
+  void SetTree(TFile *f, Int_t i);
+  Int_t LoadEvent(Int_t i);
+
+ // void FindPeak(Int_t start, Int_t stop);
+  void FindPeaks(Int_t start, Int_t stop);
+  void CheckPeakSaturation();
+  void CountPeaks(Double_t tmax, Double_t sigma);
+  void SetPedestalTimeRange(Int_t start, Int_t stop);
+  void RawEvaluatePedestal();
+  void EvaluatePedestalWithGaussianFit();
+  void EvaluatePedestalWithPhotonSuppression();
+  void EvaluatePeakStartTime(Int_t margin);
+  void EvaluateIntegral(Double_t singletintegrationtime, Double_t tmax);
+
+  void FFT(TArrayD &data, unsigned long nn, Int_t isign);
+  void FilterBackground(Int_t cutsize);
+
+  void ScaleData(Double_t scale);
+  void PrintData(FILE *fp = stdout);
+
+  void Print(FILE *fp = stdout);
+  void PrintReco(FILE *fp = stdout);
+  void PrintRawData(FILE *fp = stdout);
+
+
+  void ClearHistograms();
+
+  //ClassDef(ArPMT,2);
+  ClassDef(ArPMT,2)
+};
+
+#endif /* Ar_ArPMT */

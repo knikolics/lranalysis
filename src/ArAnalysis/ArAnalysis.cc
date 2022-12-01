@@ -1,0 +1,589 @@
+#include <fstream>
+#include <time.h>
+#include <string>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <iostream>
+#include <fstream>
+
+#include <TGClient.h>
+#include <TApplication.h>
+#include <TROOT.h>
+#include <TCanvas.h>
+#include <TRootEmbeddedCanvas.h>
+#include <TGNumberEntry.h>
+#include <TStyle.h>
+#include <TFile.h>
+#include <TLatex.h>
+#include <TMath.h>
+#include <TF1.h>
+#include <TH1.h>
+#include <TH2.h>
+#include <TLegend.h>
+#include <TTree.h>
+#include <TPad.h>
+#include <TLatex.h>
+#include <TPaveStats.h>
+
+#include "ArAnalysis.hh"
+#include "ArRun.hh"
+#include "ArPMT.hh"
+#include "ArIO.hh"
+
+
+#include "TStopwatch.h"
+
+ClassImp(ArAnalysis)
+
+
+const int ArAnalysis_verbose = 0;
+
+ArAnalysis :: ArAnalysis()
+{
+  Reset();
+}
+
+
+ArAnalysis :: ~ArAnalysis()
+{
+  
+}
+
+
+void ArAnalysis :: Reset()
+{
+  eEventsToRead = -1;
+  eSamplesToRead = -1;
+  eChannelsToRead = -7;
+  eEdge = 890;
+  eIntTime = 9000;
+  eNoiseCut = 0.;
+
+  eTriggered = 0;
+
+  eRun = 0;
+  eMeanRun = 0;
+}
+
+
+
+void ArAnalysis :: ApplyConfiguration()
+{
+  
+  if(ArAnalysis_verbose) cout<<"in ArAnalysis :: ApplyConfiguration() ... position 1 ... "<<endl;
+
+  Int_t ndetectors = eRun->NPMTs();
+  
+  if(ArAnalysis_verbose) cout<<"in ArAnalysis :: ApplyConfiguration() ... position 2 ... "<<endl;
+
+  if (eRun->RunNumber()<1900) ndetectors--;
+
+  if (ArConf->Calibration.GetSize()!=0) ;
+    //eRun->SetCalibration(ArConf->Calibration);
+  else if (ArConf->CalibrationFile!="") ;
+    //eRun->SetCalibration(ndetectors,ArConf->CalibrationFile);
+  else ;
+    //eRun->SetCalibration(ndetectors);
+  
+  if (ArConf->Delay.GetSize()!=0) ;
+    //eRun->SetDelay(ArConf->Delay);
+
+  if (ArConf->Pedestal.GetSize()!=0) ;
+    //eRun->SetPedestal(ArConf->Pedestal);
+  
+  if(ArAnalysis_verbose) cout<<"in ArAnalysis :: ApplyConfiguration() ... position 3 ... "<<endl;
+
+}
+
+
+void ArAnalysis :: ConvertData()
+{
+  if (!eRun) return;
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+    
+    if (d->Type()=="Acqiris") {
+      
+      Int_t ShiftBits = 16 - ArConf->BitResolution;
+      Double_t DataDepth = TMath::Power(2.,(Double_t)ArConf->BitResolution);
+
+      for (Int_t i=0;i<d->RawData.GetSize();i++) {
+	d->Data[i] = - ( d->FullScale()*((d->RawData[i]>>ShiftBits)/DataDepth) - d->Offset() );
+	d->DataError[i] = 0.;
+      }
+    } else if (d->Type()=="CAEN") {
+      
+      Double_t DataDepth = TMath::Power(2.,(Double_t)ArConf->BitResolution);
+      Double_t fullscale = 2.;
+
+      for (Int_t i=0;i<d->RawData.GetSize();i++) {
+	d->Data[i] = - fullscale*(d->RawData[i]/DataDepth);
+	d->DataError[i] = 0.;
+      }
+      
+    } else {
+      
+      for (Int_t i=0;i<d->RawData.GetSize();i++) {
+	d->Data[i] = - (Double_t)(d->RawData[i]);
+	d->DataError[i] = 0.;
+      }
+    }
+  
+  }
+
+
+  
+//   for (Int_t id=0;id<eRun->NDetectors();id++){
+//     ArDetector *d = GetDetector(id);
+//     for (Int_t i=0;i<d->Data.GetSize();i++)
+//       Data[i]= -(d->FullScale()*((Var_DatU[det][i]>>eShiftBits)/eDataDepth) - d->Offset);
+//       // must place fullscale and offset
+//     }
+//     // Contruct the Virtual channel //
+//     for (int i=Var_TimeMargin;i<Var_SetSamples-Var_TimeMargin;i++){
+//       if      (det==0) Var_Dat[Var_SetDetectors][i]  = Var_Dat[det][i+delay[det]]*(Var_RefCal/Var_Cal[det]);
+//       else             Var_Dat[Var_SetDetectors][i] += Var_Dat[det][i+delay[det]]*(Var_RefCal/Var_Cal[det]);
+//     }
+//   }
+}
+
+
+void ArAnalysis :: CorrectData()
+{
+  if (!eRun) return;
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+
+    Int_t start,stop;
+
+    // timing correction due to the branch "delay" in raw data (only for CAEN)
+
+    if (d->Type()=="CAEN") {
+      Int_t delay = - eRun->Delay(id);
+      if (delay>0) {
+    	start = 0;
+    	stop = d->Data.GetSize() - delay;
+    	for (Int_t time=start;time<stop;time++)
+    	  d->Data[time] = d->Data[time+delay];
+    	for (Int_t time=stop;time<d->Data.GetSize();time++)
+    	  //	d->Data[time] = 0;
+    	  d->Data[time] = d->PedMean();
+      } else {
+    	start = - delay;
+    	stop = d->Data.GetSize();
+    	for (Int_t time=stop-1;time>=start;time--)
+    	  d->Data[time] = d->Data[time+delay];
+    	for (Int_t time=start-1;time>=0;time--)
+    	  //	d->Data[time] = 0;
+    	  d->Data[time] = d->PedMean();
+      }
+    }
+
+    // timing correction due to numbers in cfg file
+
+    if (d->Delay()>0) {
+      start = 0;
+      stop = d->Data.GetSize() - d->Delay();
+      for (Int_t time=start;time<stop;time++)
+	d->Data[time] = d->Data[time+d->Delay()];
+      for (Int_t time=stop;time<d->Data.GetSize();time++)
+	//	d->Data[time] = 0;
+	d->Data[time] = d->PedMean();
+    } else {
+      start = - d->Delay();
+      stop = d->Data.GetSize();
+      for (Int_t time=stop-1;time>=start;time--)
+	d->Data[time] = d->Data[time+d->Delay()];
+      for (Int_t time=start-1;time>=0;time--)
+	//	d->Data[time] = 0;
+	d->Data[time] = d->PedMean();
+    }
+
+    // pedestal and gain correction
+
+    for (Int_t time=0;time<d->Data.GetSize();time++)
+      d->Data[time] = (d->Data[time] - d->Pedestal()) * ArConf->ReferenceConversionFactor / d->Calibration();
+
+    // pedestal correction to previously evaluated variables
+    d->SetPedMean(d->PedMean() - d->Pedestal());
+    d->SetPedMin(d->PedMin() - d->Pedestal());
+    d->SetPedMax(d->PedMax() - d->Pedestal());
+
+    // gain correction to previously evaluated variables
+    d->SetPedIntegral(d->PedIntegral() * ArConf->ReferenceConversionFactor / d->Calibration());
+    d->SetPedIntegralPe(d->PedIntegralPe() * ArConf->ReferenceConversionFactor / d->Calibration());
+
+  }
+  
+}
+
+
+void ArAnalysis :: FindPedestal()
+{
+  if (!eRun) return;
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+    d->SetPedestalTimeRange(ArConf->StartPedestal,ArConf->StopPedestal);
+    //    d->SetPedestalTimeRange(30,600);
+    //    d->SetPedestalTimeRange(7000,10000);
+    //    d->RawEvaluatePedestal();
+    d->EvaluatePedestalWithPhotonSuppression();
+    //    d->EvaluatePedestalWithGaussianFit();
+
+    d->SetPedestal(d->PedMean());
+  }
+  
+}
+
+
+void ArAnalysis :: FindSignal()
+{
+  if (!eRun) return;
+
+  TStopwatch timer;
+  timer.Start();
+
+  eRun->eSumPeakIntegralTop = 0;
+  eRun->eSumPeakIntegralBottom = 0;
+
+  //for (Int_t id=0;id<eRun->NPMTs();id++) {
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+
+    ArPMT *d = eRun->GetPMT(id);
+   /* 
+    if(ArAnalysis_verbose || RUNTIME_MONITOR) cout<<"pmt "<<id<<"\t calling pmt->FindPeak(..) ... "<<endl;
+    
+    d->FindPeak(ArConf->StartPeakSignal,ArConf->StopPeakSignal);
+
+    
+    if(ArAnalysis_verbose || RUNTIME_MONITOR){
+      timer.Stop();
+      cout<<"pmt "<<id<<"\t finished pmt->FindPeak(..) ... \t\t\t\t"<<timer.RealTime()<<endl;
+      timer.Start();
+    }
+    */
+    
+    if(ArAnalysis_verbose || RUNTIME_MONITOR) cout<<"pmt "<<id<<"\t calling pmt->FindPeaks(..) ... "<<endl;
+    
+    d->FindPeaks(ArConf->StartPeakSignal,ArConf->StopPeakSignal);//luillo
+    
+    if(ArAnalysis_verbose || RUNTIME_MONITOR){
+      timer.Stop();
+      cout<<"pmt "<<id<<"\t finished pmt->FindPeaks(..) ... \t\t\t\t"<<timer.RealTime()<<endl;
+      timer.Start();
+    }
+    
+    
+    if(ArAnalysis_verbose || RUNTIME_MONITOR) cout<<"pmt "<<id<<"\t calling pmt->CheckPeakSaturation(..) ... "<<endl;
+    
+    d->CheckPeakSaturation();
+    
+    if(ArAnalysis_verbose || RUNTIME_MONITOR){
+      timer.Stop();
+      cout<<"pmt "<<id<<"\t finished pmt->CheckPeakSaturation(..) ... \t\t\t\t"<<timer.RealTime()<<endl;
+      timer.Start();
+    }
+    
+    
+    
+    if(ArAnalysis_verbose || RUNTIME_MONITOR) cout<<"pmt "<<id<<"\t calling pmt->EvaluatePeakStartTime(..) ... "<<endl;
+    
+    d->EvaluatePeakStartTime(10);
+
+    
+    if(ArAnalysis_verbose || RUNTIME_MONITOR){
+      timer.Stop();
+      cout<<"pmt "<<id<<"\t finished pmt->EvaluatePeakStartTime(..) ... \t\t\t\t"<<timer.RealTime()<<endl;
+      timer.Start();
+    }
+    
+    if(id<eRun->NPMTs()/2) eRun->eSumPeakIntegralTop += d->eSumPeakIntegralPMT;
+    else                   eRun->eSumPeakIntegralBottom += d->eSumPeakIntegralPMT;
+
+   }
+  
+}
+
+
+void ArAnalysis :: SetFakeSignal(Int_t time)
+{
+  if (!eRun) return;
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+    d->SetPeakTime(time);
+    d->SetPeakValue(0);
+    d->SetPeakIsSaturated(0);
+    d->SetPedTimeMax(time);
+  }
+  
+}
+
+
+void ArAnalysis :: FindSignalWithOfflineTrigger(Double_t threshold, Int_t majority)
+{
+  if (!eRun) return;
+
+  Int_t trigger_time=-1;
+
+  Int_t start = ArConf->StartPeakSignal;
+  Int_t stop = ArConf->StopPeakSignal;
+
+  Int_t noverthreshold;
+
+  for (Int_t time=start;time<stop;time++) {
+
+    noverthreshold=0;
+    for (Int_t id=0;id<eRun->NPMTs();id++) {
+      ArPMT *d = eRun->GetPMT(id);
+      if ( d->Data[time] > threshold ) noverthreshold++;
+    }
+
+    if (noverthreshold>=majority) {trigger_time = time; break; }
+  }  
+
+  if (trigger_time!=-1) eTriggered=1;
+  else eTriggered=0;
+
+  if (ArDBLEVEL>=2) {
+    printf("Signal triggered");
+    printf("  Trigger time = %d ns\n",trigger_time);
+    printf("  Number of PMTs over threshold = %d\n",noverthreshold);
+  }
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+    //d->FindPeak(trigger_time-1000,stop);
+    d->FindPeaks(trigger_time-1000,stop);
+    d->CheckPeakSaturation();
+    d->EvaluatePeakStartTime(10);
+  }
+
+}
+
+
+void ArAnalysis :: FilterBackground()
+{
+  if (!eRun) return;
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+    d->FilterBackground(3000);
+  }
+  
+}
+
+
+void ArAnalysis :: EvaluateIntegral()
+{
+  if (!eRun) return;
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+    if(ArAnalysis_verbose) cout<<"in ArAnalysis :: EvaluateIntegral() ... position 1 ... id "<<id<<endl;
+    //d->CountPeaks(ArConf->MaximumIntegrationTime,d->PedSigma());
+    if(ArAnalysis_verbose) cout<<"in ArAnalysis :: EvaluateIntegral() ... position 2 ... id "<<id<<endl;
+    d->EvaluateIntegral(ArConf->SingletIntegrationTime,ArConf->MaximumIntegrationTime);
+    if(ArAnalysis_verbose) cout<<"in ArAnalysis :: EvaluateIntegral() ... position 3 ... id "<<id<<endl;
+  }
+  
+}
+
+
+void ArAnalysis :: EvaluateChannelsFromVirtualChannel()
+{
+  if (!eRun) return;
+
+  ArPMT *vPMT = eRun->GetVPMT();
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+
+    d->SetPedTimeMax(vPMT->PeakStartTime());
+    d->SetPeakTime(vPMT->PeakTime());
+    
+    //d->CountPeaks(ArConf->MaximumIntegrationTime,d->PedSigma());
+    d->EvaluateIntegral(ArConf->SingletIntegrationTime,ArConf->MaximumIntegrationTime);
+  }
+  
+}
+
+
+void ArAnalysis :: FillVirtualChannel()
+{
+  if (!eRun) return;
+
+  ArPMT *vPMT = eRun->GetVPMT();
+
+//   for (Int_t id=0;id<eRun->NPMTs()-1;id++) {
+//     ArPMT *d = eRun->GetPMT(id);
+//     Int_t time_offset = d->PeakTime() - vPMT->PeakTime();
+//     Int_t start = time_offset>0 ? 0 : -time_offset;
+//     Int_t stop  = time_offset>0 ? d->Data.GetSize()-time_offset : d->Data.GetSize();
+//     for (Int_t time=start;time<stop;time++)
+//       //      printf("%d       %d    %d  %d\n",id,time,time_offset,time+time_offset);
+//       vPMT->Data[time] += d->Data[time+time_offset] - d->PedMean() + vPMT->PedMean();
+//   }
+
+  for (Int_t time=0;time<vPMT->Data.GetSize();time++)
+    vPMT->Data[time] = 0;
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    if (ArConf->VirtualChannelMask&&!(ArConf->VirtualChannelMaskList[id])) continue;
+    ArPMT *d = eRun->GetPMT(id);
+    if(d->NPeaks()==0)continue;
+    for (Int_t time=0;time<vPMT->Data.GetSize();time++)
+      vPMT->Data[time] += d->Data[time];
+  }
+  
+}
+
+
+void ArAnalysis :: ShiftVirtualChannel(Float_t reftime)
+{
+  ArPMT *vPMT = eRun->GetVPMT();
+
+  //Int_t time_offset = vPMT->PeakTime() - reftime;
+  vPMT->SetDelay(int(vPMT->PeakTime() - reftime));
+
+  Int_t start,stop;
+
+  if (vPMT->Delay()>0) {
+      start = 0;
+      stop = vPMT->Data.GetSize() - vPMT->Delay();
+      for (Int_t time=start;time<stop;time++)
+	vPMT->Data[time] = vPMT->Data[time+vPMT->Delay()];
+      for (Int_t time=stop;time<vPMT->Data.GetSize();time++)
+	vPMT->Data[time] = 0;
+    } else {
+      start = - vPMT->Delay();
+      stop = vPMT->Data.GetSize();
+      for (Int_t time=stop-1;time>=start;time--)
+	vPMT->Data[time] = vPMT->Data[time+vPMT->Delay()];
+      for (Int_t time=start-1;time>=0;time--)
+	vPMT->Data[time] = 0;
+    }
+
+}
+
+
+
+
+void ArAnalysis :: AnalyseVirtualChannel()
+{
+  if (!eRun) return;
+
+  ArPMT *vPMT = eRun->GetVPMT();
+
+  ArPMT *pmt0 = eRun->GetPMT(0);
+
+  vPMT->SetPedestalTimeRange(ArConf->StartPedestal,ArConf->StopPedestal);
+  vPMT->EvaluatePedestalWithPhotonSuppression();
+  vPMT->SetPedestal(vPMT->PedMean());
+//  vPMT->FindPeak(ArConf->StartPeakSignal,ArConf->StopPeakSignal);
+  vPMT->FindPeaks(ArConf->StartPeakSignal,ArConf->StopPeakSignal);
+  vPMT->CheckPeakSaturation();
+  vPMT->EvaluatePeakStartTime(20);
+  //vPMT->CountPeaks(ArConf->MaximumIntegrationTime,vPMT->PedSigma());
+  vPMT->EvaluateIntegral(ArConf->SingletIntegrationTime,ArConf->MaximumIntegrationTime);
+
+  Double_t integral=0.;
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    if (ArConf->VirtualChannelMask&&!(ArConf->VirtualChannelMaskList[id])) continue;
+    ArPMT *d = eRun->GetPMT(id);
+    integral += d->IntegralPe();
+  }
+  vPMT->SetIntegralPeS(integral);
+  vPMT->SetCRPeS((vPMT->IntegralSinglet0()+vPMT->IntegralSinglet1())/integral);
+}
+
+
+void ArAnalysis :: ResetMeanTrace()
+{
+  for (Int_t id=0;id<eMeanRun->NPMTs();id++) {
+    ArPMT *meanpmt = eMeanRun->GetPMT(id);
+    meanpmt->Data.Set(eMeanRun->NumberOfSamples());
+    meanpmt->DataError.Set(eMeanRun->NumberOfSamples());
+    meanpmt->Data.Reset();
+    meanpmt->DataError.Reset();
+  }
+  ArPMT *meanpmt = eMeanRun->GetVPMT();
+  meanpmt->Data.Set(eMeanRun->NumberOfSamples());
+  meanpmt->DataError.Set(eMeanRun->NumberOfSamples());
+  meanpmt->Data.Reset();
+  meanpmt->DataError.Reset();
+}
+
+void ArAnalysis :: FillMeanTrace()
+{
+  for (Int_t id=0;id<eMeanRun->NPMTs();id++) {
+    ArPMT *meanpmt = eMeanRun->GetPMT(id);
+    ArPMT *pmt = eRun->GetPMT(id);
+    for (Int_t time=0;time<pmt->Data.GetSize();time++) {
+      meanpmt->Data[time] += pmt->Data[time];
+      meanpmt->DataError[time] += pmt->Data[time]*pmt->Data[time];
+    }
+  }
+  ArPMT *meanpmt = eMeanRun->GetVPMT();
+  ArPMT *pmt = eRun->GetVPMT();
+  for (Int_t time=0;time<pmt->Data.GetSize();time++) {
+    meanpmt->Data[time] += pmt->Data[time];
+    meanpmt->DataError[time] += pmt->Data[time]*pmt->Data[time];
+  }
+}
+
+void ArAnalysis :: ScaleMeanTrace(Double_t nentries)
+{
+  float exp;
+  for (Int_t id=0;id<eMeanRun->NPMTs();id++) {
+    ArPMT *meanpmt = eMeanRun->GetPMT(id);
+    for (Int_t time=0;time<meanpmt->Data.GetSize();time++) {
+      meanpmt->Data[time] /= nentries;
+      exp = meanpmt->DataError[time] / nentries - meanpmt->Data[time]*meanpmt->Data[time];
+      meanpmt->DataError[time] = sqrt( exp>0?exp:0 );
+    }
+  }
+  ArPMT *meanpmt = eMeanRun->GetVPMT();
+  for (Int_t time=0;time<meanpmt->Data.GetSize();time++) {
+    meanpmt->Data[time] /= nentries;
+    exp = meanpmt->DataError[time] / nentries - meanpmt->Data[time]*meanpmt->Data[time];
+    meanpmt->DataError[time] = sqrt( exp>0?exp:0 );
+  }
+}
+
+void ArAnalysis :: PrintMeanTrace(FILE *fp)
+{
+  for (Int_t id=0;id<eMeanRun->NPMTs();id++) {
+    ArPMT *meanpmt = eMeanRun->GetPMT(id);
+    meanpmt->PrintData(fp);
+  }
+  ArPMT *meanpmt = eMeanRun->GetVPMT();
+  meanpmt->PrintData(fp);
+}
+
+
+void ArAnalysis :: Print(FILE *fp)
+{
+  if (!eRun) return;
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+    d->PrintReco(fp);
+  }
+  eRun->GetVPMT()->PrintReco();
+}
+
+void ArAnalysis :: ClearHistograms()
+{
+  if (!eRun) return;
+
+  for (Int_t id=0;id<eRun->NPMTs();id++) {
+    ArPMT *d = eRun->GetPMT(id);
+    d->ClearHistograms();
+  }  
+
+}

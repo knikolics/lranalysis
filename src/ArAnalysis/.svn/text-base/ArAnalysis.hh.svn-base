@@ -1,0 +1,123 @@
+#ifndef Ar_ArAnalysis
+#define Ar_ArAnalysis
+
+
+// V@B - 05/02/08 - ArAnalysis.hh
+// 
+// 
+//
+//
+#include <fstream>
+#include <time.h>
+#include <string>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <iostream>
+#include <fstream>
+
+#include <TGClient.h>
+#include <TApplication.h>
+#include <TROOT.h>
+#include <TCanvas.h>
+#include <TRootEmbeddedCanvas.h>
+#include <TGNumberEntry.h>
+#include <TStyle.h>
+#include <TFile.h>
+#include <TLatex.h>
+#include <TF1.h>
+#include <TH1.h>
+#include <TH2.h>
+#include <TLegend.h>
+#include <TTree.h>
+#include <TPad.h>
+#include <TLatex.h>
+#include <TPaveStats.h>
+
+#include "ArRun.hh"
+#include "ArConfiguration.hh"
+
+#define FILENUMBER       200    // Maximum file to be allocated
+#define MAXDETECTORS       8    // Maximum number of detectors allowed
+#define DETECTORS          8    // Maximum number of detectors
+#define MAXGROUPS          2    // 
+#define SAMPLES        10002    //
+#define MAXPEDSAMPLES   2000    //
+#define MAXEVENTS      20002    //
+
+
+  //using namespace std;
+class ArRun;
+class ArConfiguration;
+
+class ArAnalysis : public TObject {
+
+private:
+
+  Int_t eEventsToRead;      // -1 means all available events
+  Int_t eSamplesToRead;     // -1 means all available samples
+  Int_t eChannelsToRead;    // -1 means all available channels TO CHECK!
+  Int_t eEdge;              // Delay of the trigger
+  Int_t eIntTime;           // Integration time
+  Double_t eNoiseCut;       // Noise rejection in terms of sigma
+
+  Int_t eTriggered;
+//   Double_t eSPThreshold;    // Single Photon (SP) threshold
+//   Int_t eSampleCorrection;  // Single Photon tail correction level (samples)
+
+  //  Float_t eTimeMargin;
+  //  Float_t eSamplingSpeed;
+  //  Float_t eTriggerTime;
+  //  Float_t eStopIntegration;
+
+  ArRun *eRun;
+
+  ArRun *eMeanRun;
+
+
+public:
+  ArAnalysis();
+  ~ArAnalysis();
+
+  // Reset private variables
+  void Reset();
+
+  ArRun *Run() { return eRun; }
+  ArRun *MeanRun() { return eMeanRun; }
+
+  void SetRun(ArRun *run) { eRun = run; }
+  void ApplyConfiguration();
+
+  void ConvertData();
+  void CorrectData();
+
+  void FindPedestal();
+  void FindSignal();
+  void SetFakeSignal(Int_t time);
+  void FindSignalWithOfflineTrigger(Double_t threshold, Int_t majority);
+  void EvaluateIntegral();
+
+  void FillVirtualChannel();
+  void ShiftVirtualChannel(Float_t reftime);
+  void AnalyseVirtualChannel();
+  void EvaluateChannelsFromVirtualChannel();
+
+  void FilterBackground();
+
+  void SetMeanTrace(ArRun *run) { eMeanRun = run; }
+  void ResetMeanTrace();
+  void FillMeanTrace();
+  void ScaleMeanTrace(Double_t nentries);
+  void PrintMeanTrace(FILE *fp = stdout);
+
+  Int_t Triggered() { return eTriggered; }
+  void SetTriggered(Int_t i) { eTriggered = i; }
+
+  void Print(FILE *fp = stdout);
+
+  void ClearHistograms();
+ 
+  ClassDef(ArAnalysis,1);
+};
+
+#endif /* Ar_ArAnalysis */

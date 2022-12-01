@@ -1,0 +1,167 @@
+K 25
+svn:wc:ra_dav:version-url
+V 55
+/svn/ArDMrepos/!svn/ver/290/LRAnalysis/devel/src/Macros
+END
+Show_CR_Integral_Alpha.C
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/Show_CR_Integral_Alpha.C
+END
+FindDelay.C
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/ArDMrepos/!svn/ver/254/LRAnalysis/devel/src/Macros/FindDelay.C
+END
+FitTrace.C
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/ArDMrepos/!svn/ver/251/LRAnalysis/devel/src/Macros/FitTrace.C
+END
+Show_CR_Integral_New.C
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/ArDMrepos/!svn/ver/251/LRAnalysis/devel/src/Macros/Show_CR_Integral_New.C
+END
+ReadCalibration.cxx
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svn/ArDMrepos/!svn/ver/290/LRAnalysis/devel/src/Macros/ReadCalibration.cxx
+END
+SelectEvents.C
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/ArDMrepos/!svn/ver/265/LRAnalysis/devel/src/Macros/SelectEvents.C
+END
+Show_CR_Integral_Nrecoil.C
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/Show_CR_Integral_Nrecoil.C
+END
+FindPe.C
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/FindPe.C
+END
+Show_CR_Integral_Alpha_New.C
+K 25
+svn:wc:ra_dav:version-url
+V 84
+/svn/ArDMrepos/!svn/ver/251/LRAnalysis/devel/src/Macros/Show_CR_Integral_Alpha_New.C
+END
+Show_CR_Integral_Na.C
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/Show_CR_Integral_Na.C
+END
+ShowSerie.C
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/ShowSerie.C
+END
+Show_CR_Integral_Cosmics.C
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/svn/ArDMrepos/!svn/ver/254/LRAnalysis/devel/src/Macros/Show_CR_Integral_Cosmics.C
+END
+ReadEvent.C
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/ReadEvent.C
+END
+ShowBackground.C
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/ShowBackground.C
+END
+GetEvent.C
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/GetEvent.C
+END
+PlotCalibrationVSRun.C
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/PlotCalibrationVSRun.C
+END
+DataMCComparison.C
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svn/ArDMrepos/!svn/ver/200/LRAnalysis/devel/src/Macros/DataMCComparison.C
+END
+FindPedestals.C
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/FindPedestals.C
+END
+FindPe2.C
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/FindPe2.C
+END
+Calibration.C
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/ArDMrepos/!svn/ver/290/LRAnalysis/devel/src/Macros/Calibration.C
+END
+FindPe3.C
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/FindPe3.C
+END
+FindCalibration.C
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/ArDMrepos/!svn/ver/263/LRAnalysis/devel/src/Macros/FindCalibration.C
+END
+FindPe4.C
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/FindPe4.C
+END
+Show_CR_Integral.C
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/Show_CR_Integral.C
+END
+ReadTrace.C
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/ArDMrepos/!svn/ver/251/LRAnalysis/devel/src/Macros/ReadTrace.C
+END
+AnalyzeSerie.C
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/AnalyzeSerie.C
+END
+ShowSeriePosition.C
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svn/ArDMrepos/!svn/ver/160/LRAnalysis/devel/src/Macros/ShowSeriePosition.C
+END

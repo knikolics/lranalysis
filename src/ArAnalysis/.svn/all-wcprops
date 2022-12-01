@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svn/ArDMrepos/!svn/ver/298/LRAnalysis/devel/src/ArAnalysis
+END
+ArAnalysis.hh
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/ArDMrepos/!svn/ver/265/LRAnalysis/devel/src/ArAnalysis/ArAnalysis.hh
+END
+ArAnalysis.cc
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/ArDMrepos/!svn/ver/298/LRAnalysis/devel/src/ArAnalysis/ArAnalysis.cc
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/ArDMrepos/!svn/ver/113/LRAnalysis/devel/src/ArAnalysis/Makefile
+END

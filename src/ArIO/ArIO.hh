@@ -1,0 +1,40 @@
+#ifndef Ar_ArIO
+#define Ar_ArIO
+
+#include <iostream>
+#include <fstream>
+#include <string>
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <TROOT.h>
+
+class ArConfiguration;
+
+// Debug level. Default value is 2
+R__EXTERN Int_t   ArDBLEVEL;
+R__EXTERN ArConfiguration *ArConf;
+
+
+class ArIO : public TObject {
+
+private:
+
+  
+
+public:
+
+  ArIO();
+  ~ArIO();
+
+  static TString i2s(int run);
+  static TString r2s(int run);
+  static void MakeFileName(TString &s, const char *path, Int_t runnumber, Int_t filenumber, const char *suffix);
+  static void PrintColor(FILE *fp, const char *phrase);
+
+  //ClassDef(ArIO,1);
+  ClassDef(ArIO,1)
+};
+
+#endif /* Ar_ArIO */

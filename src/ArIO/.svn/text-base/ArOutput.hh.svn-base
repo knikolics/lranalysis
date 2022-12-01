@@ -1,0 +1,63 @@
+#ifndef Ar_ArOutput
+#define Ar_ArOutput
+
+#include <iostream>
+#include <fstream>
+#include <string>
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <TROOT.h>
+#include <TArrayF.h>
+
+#include "ArRun.hh"
+#include "ArRecoPMT.hh"
+
+class ArOutput : public TObject {
+
+private:
+
+  TString  eFileName;
+  TFile*   eFile;
+  TTree*   eTreeData;
+  TTree*   eTreeMeanTrace;
+  //  TTree*   eTreeHeader;
+
+  // Header tree informations
+  Int_t eRunNumber;
+  Int_t eFileNumber;
+  Int_t eEventNumber;
+  Int_t eNPMTs;
+  Int_t eAcquisitionTime;
+
+  Long64_t eTTT;
+  Int_t eDelay[16];
+  Int_t eNSamples;
+
+  // Data tree informations
+  TClonesArray *eRecoPMTs;
+  ArRecoPMT *eRecoVPMT;
+
+  // Mean trace tree informations
+  Int_t ePMT;
+  Int_t eTime;
+  Double_t eData;
+  Double_t eDataError;
+
+public:
+
+  ArOutput(const char *filename);
+  ~ArOutput();
+
+  Int_t Open();
+  Int_t Cd();
+  Int_t FillData(ArRun *run);
+  Int_t FillMeanTrace(ArAnalysis *analysis);
+  //  Int_t FillHeader(ArRun *run);
+  Int_t Close();
+
+  ClassDef(ArOutput,1);
+};
+
+#endif /* Ar_ArOutput */

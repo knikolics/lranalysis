@@ -1,0 +1,237 @@
+/*****************************************************
+ ** LRAnalysis                                      **
+ ** Analysis program of light readout data,         **
+ ** developed for ArDM by Luca Scotto Lavina,       **
+ ** starting from the work done by Vittorio Boccone **
+ *****************************************************/
+
+#define Version "LRAnalysis - 1.1 - 30/10/10"
+
+#include <fstream>
+#include <string>
+#include <vector>
+#include <iostream>
+#include <stdio.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+#include <TROOT.h>
+#include <TApplication.h>
+#include <TFile.h>
+#include <TTree.h>
+#include <TCanvas.h>
+#include <TH1.h>
+#include <TGraph.h>
+#include <TEllipse.h>
+#include <TMath.h>
+#include <TSpectrum.h>
+#include <TVirtualFFT.h>
+
+#include "ArAnalysis.hh"
+#include "ArRun.hh"
+#include "ArIO.hh"
+#include "ArOutput.hh"
+
+
+TString   Path;
+Int_t     RunNumber;  
+
+void Analysis(void)
+{
+  ArDBLEVEL = 4;
+
+  ArAnalysis *analysis = new ArAnalysis();
+
+
+  /*********************
+   ** Opening the run **
+   *********************/
+
+  ArRun *run = new ArRun(Path.Data(),RunNumber);
+  run->LoadConfig();     // Loading chcfg file
+  run->PrintConfig();
+  analysis->SetRun(run);
+
+
+  /************************************************
+   ** Opening the configuration for the analysis **
+   ************************************************/
+
+  ArConf = new ArConfiguration(Path.Data(),RunNumber);
+  ArConf->Load();  // Loading the cfg file
+  analysis->ApplyConfiguration();
+
+  run->Print();
+
+  ArConf->Print();
+  run->PrintCalibration();
+  run->PrintDelay();
+
+  /************************
+   ** Opening the output **
+   ************************/
+
+  TString filename;
+  ArIO::MakeFileName(filename,".",RunNumber,-1,"output.root");
+  ArOutput *output = new ArOutput(filename);
+  output->Open();
+  //  output->FillHeader(run);
+
+  /******************************
+   ** Creating the mean traces **
+   ******************************/
+
+  ArRun *meanrun = new ArRun(Path.Data(),RunNumber);
+  meanrun->LoadConfig();
+  analysis->SetMeanTrace(meanrun);
+  analysis->ResetMeanTrace();
+
+  /*************************
+   ** Looping over events **
+   *************************/
+
+  Int_t processedevents = 0;
+
+  if (ArConf->EventsInTheMask) {
+    //    ArConf->PrintMask();
+
+    if (ArConf->LastEvent<0) ArConf->LastEvent = ArConf->EventsInTheMask - 1;
+
+    for (Long64_t i=ArConf->FirstEvent;i<=ArConf->LastEvent;i++) {
+
+      if (run->LoadEvent(ArConf->FileList[i],ArConf->EventList[i])<0) break;
+
+      processedevents++;
+
+      fprintf(stderr," > %lld/%lld\r",i-ArConf->FirstEvent,ArConf->LastEvent - ArConf->FirstEvent + 1);
+
+      analysis->ConvertData();
+      analysis->FindPedestal();
+      analysis->CorrectData();
+      if (ArConf->FakeSignalTime<0) 
+	analysis->FindSignal(); // also Find Peaks luillo
+      else analysis->SetFakeSignal(ArConf->FakeSignalTime);
+      // analysis->FindSignalWithOfflineTrigger(0.020,2);
+      // if (!analysis->Triggered()) continue;
+
+      // analysis->FilterBackground();
+      analysis->EvaluateIntegral();
+
+      analysis->FillVirtualChannel();
+      analysis->AnalyseVirtualChannel();
+      if (ArConf->EvaluateChannelsFromVirtualChannel) {
+	analysis->EvaluateChannelsFromVirtualChannel();
+	analysis->AnalyseVirtualChannel();
+      }
+
+      // analysis->ShiftVirtualChannel(1000);
+
+      analysis->FillMeanTrace();
+      output->Cd();
+      output->FillData(run);
+
+      // run->PrintData(1);
+      // run->PrintRawData();
+      // run->PrintData();
+      // run->Print();
+      // analysis->Print();
+      // analysis->ClearHistograms();
+    }
+
+  } else {
+
+    if (ArConf->LastEvent<0) ArConf->LastEvent = run->TotalNumberOfFiles() * run->NumberOfEventsInFile() - 1;
+
+    for (Long64_t i=ArConf->FirstEvent;i<=ArConf->LastEvent;i++)
+      {
+	if (run->LoadEvent(i)<0) break;
+
+	processedevents++;
+
+	fprintf(stderr," > %lld/%lld\r",i-ArConf->FirstEvent,ArConf->LastEvent - ArConf->FirstEvent + 1);
+
+	//	run->PrintRawData();
+	analysis->ConvertData();
+	analysis->FindPedestal();
+	analysis->CorrectData();
+	if (ArConf->FakeSignalTime<0) 
+	  analysis->FindSignal();
+	else analysis->SetFakeSignal(ArConf->FakeSignalTime);
+	// analysis->FindSignalWithOfflineTrigger(0.020,2);
+	// if (!analysis->Triggered()) continue;
+
+	// analysis->FilterBackground();
+	analysis->EvaluateIntegral();
+
+	analysis->FillVirtualChannel();
+	analysis->AnalyseVirtualChannel();
+	if (ArConf->EvaluateChannelsFromVirtualChannel) {
+	  analysis->EvaluateChannelsFromVirtualChannel();
+	  analysis->AnalyseVirtualChannel();
+	}
+
+	// analysis->ShiftVirtualChannel(1000);
+
+ 	analysis->FillMeanTrace();
+ 	output->Cd();
+ 	output->FillData(run);
+
+	// run->PrintData(1);
+	// run->PrintRawData();
+ 	// run->PrintData();
+	// run->Print();
+	// analysis->Print();
+	// analysis->ClearHistograms();	
+      }
+
+  }
+
+  analysis->ScaleMeanTrace( (Double_t)(processedevents) );
+  output->FillMeanTrace(analysis);
+  
+//   FILE *fp=fopen("example.dat","w");
+//   analysis->PrintMeanTrace(fp);
+//   fclose(fp);
+  
+
+
+  /***************
+   ** Game over **
+   ***************/
+
+  run->CloseFile();
+
+  output->Cd();
+  output->Close();
+  //  analysis->ClearHistograms();
+}
+
+
+int main(int argc, char **argv)
+{
+  char *tmp;
+
+  if (argc==3) {
+    Path         = argv[1];
+    RunNumber    = strtol(argv[2], &tmp,0);
+  } else if (argc==2) {
+    Path         = argv[1];
+    RunNumber    = -1;
+  } else {
+    fprintf(stderr,"%s\n",Version);
+    fprintf(stderr,"SYNOPSYS\n");
+    fprintf(stderr,"  %s path runnumber\n",argv[0]);
+    fprintf(stderr,"  %s fileprefix\n\n",argv[0]);
+    fprintf(stderr,"DESCRIPTION\n");
+    fprintf(stderr,"  path         path where run directories are stored\n");
+    fprintf(stderr,"  runnumber    run number to be analyzed\n");
+    fprintf(stderr,"  fileprefix   file prefix to build the sequence <fileprefix><eventnumber>.root\n");
+    fprintf(stderr,"\nWrong synopsis!\n");
+    return(-1);
+  }
+
+  Analysis();
+
+  return(0);
+}

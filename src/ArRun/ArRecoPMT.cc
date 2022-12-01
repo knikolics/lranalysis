@@ -1,0 +1,156 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+#include <TROOT.h>
+#include <TClonesArray.h>
+#include <TMath.h>
+
+#include "ArRun.hh"
+#include "ArIO.hh"
+#include "ArAnalysis.hh"
+
+#include "ArRecoPMT.hh"
+#include "ArPMT.hh"
+
+ClassImp(ArRecoPMT)
+
+
+#define SWAP(a,b) tempr=(a);(a)=(b);(b)=tempr
+
+
+
+ArRecoPMT :: ArRecoPMT()
+{
+  Reset();
+}
+
+
+ArRecoPMT :: ArRecoPMT(ArPMT *pmt)
+{
+  Import(pmt);  
+}
+
+ArRecoPMT :: ~ArRecoPMT()
+{
+
+}
+
+
+void ArRecoPMT :: Reset()
+{
+  ePedTimeMin = 30;
+  ePedTimeMax = 600;
+  ePedMin = 0;
+  ePedMax = 0;
+  ePedMean = 0;
+  ePedSigma = 0;
+  ePedChi2 = 0;
+  ePedNpe = 0;
+  ePedIntegral = 0;
+  ePedIntegralPe = 0;
+  ePedTimePe = ePedTimeMax-ePedTimeMin;
+
+  ePeakStartTime = 0;
+  ePeakTime = 0;
+  ePeakValue = 0;
+  ePeakIsSaturated = 0;
+  eNPeaks = 0;
+  //eNpe = 0;
+  //ePeakTimes = 0;
+  //ePeakIntegral = 0;
+  eIntegral = 0;
+  eIntegralPe = 0;
+  eIntegralPeS = 0;
+  eTimePe = 0;
+  eIntegralSinglet0 = 0;
+  eIntegralSinglet1 = 0;
+  eCR = 0;
+  eCRPe = 0;
+  eCRPeS = 0;
+}
+
+
+void ArRecoPMT :: Print(FILE *fp)
+{
+  fprintf(fp,"** RecoPMT\n");
+  fprintf(fp,"     Channel %d, Name %s, Type %s\n",eID,Name().Data(),Type().Data());
+  fprintf(fp,"       Pedestal:\n");
+  fprintf(fp,"         PedTimeMin:       %10d [s]\n",     ePedTimeMin);
+  fprintf(fp,"         PedTimeMax:       %10d [s]\n",     ePedTimeMax);
+  fprintf(fp,"         PedMin:           %10.5lf [V]\n",   ePedMin);
+  fprintf(fp,"         PedMax:           %10.5lf [V]\n",   ePedMax);
+  fprintf(fp,"         PedMean:          %10.5lf [V]\n",   ePedMean);
+  fprintf(fp,"         PedSigma:         %10.5lf [V]\n",   ePedSigma);
+  fprintf(fp,"         PedChi2:          %10.5lf\n",       ePedChi2);
+  fprintf(fp,"         PedNpe:           %10d\n",          ePedNpe);
+  fprintf(fp,"         PedIntegral:      %10.5lf [Vs]\n",  ePedIntegral);
+  fprintf(fp,"         PedIntegralPe:    %10.5lf [Vs]\n",  ePedIntegralPe);
+  fprintf(fp,"         PedTimePe:        %10d [s]\n",      ePedTimePe);
+  fprintf(fp,"       Signal:\n");
+  fprintf(fp,"         PeakTime:         %10d [s]\n",     ePeakTime);
+  fprintf(fp,"         PeakStartTime:    %10d [s]\n",     ePeakStartTime);
+  fprintf(fp,"         PeakIsSaturated:  %s\n", ePeakIsSaturated>0?"yes":"no");
+  fprintf(fp,"         NPeaks:           %10d\n",          eNPeaks);
+  fprintf(fp,"         PeakValue:        %10.5lf [V]\n",   ePeakValue);
+  // fprintf(fp,"         Npe:              %10d\n",          eNpe);
+  // fprintf(fp,"         brPeakTime:       %10d [s]\n",     ebrPeakTime);
+  // fprintf(fp,"         brIntegral:       %10.5lf [Vs]\n", ebrIntegral);
+  fprintf(fp,"         Integral:         %10.5lf [Vs]\n", eIntegral);
+  fprintf(fp,"         IntegralPe:       %10.5lf [Vs]\n", eIntegralPe);
+  fprintf(fp,"         IntegralPeS:      %10.5lf [Vs]\n", eIntegralPeS);
+  fprintf(fp,"         TimePe:           %10.5lf [Vs]\n", eTimePe);
+  fprintf(fp,"         IntegralSinglet0: %10.5lf [Vs]\n", eIntegralSinglet0);
+  fprintf(fp,"         IntegralSinglet1: %10.5lf [Vs]\n", eIntegralSinglet1);
+  fprintf(fp,"         CR:               %10.5lf\n",      eCR);
+  fprintf(fp,"         CRPe:             %10.5lf\n",      eCRPe);
+  fprintf(fp,"         CRPeS:            %10.5lf\n",      eCRPeS);
+}
+
+void ArRecoPMT :: Import(ArPMT *p)
+{
+  eID = p->ID();
+  eName = p->Name();
+  eType = p->Type();
+  eCalibration = p->Calibration();
+  eDelay = p->Delay();
+  ePedestal = p->Pedestal();
+  ePedTimeMin = p->PedTimeMin();
+  ePedTimeMax = p->PedTimeMax();
+  ePedMin = p->PedMin();
+  ePedMax = p->PedMax();
+  ePedMean = p->PedMean();
+  ePedSigma = p->PedSigma();
+  ePedChi2 = p->PedChi2();
+  ePedNpe = p->PedNpe();
+  ePedIntegral = p->PedIntegral();
+  ePedIntegralPe = p->PedIntegralPe();
+  ePedTimePe = p->PedTimePe();
+
+  ePeakStartTime = p->PeakStartTime();
+  ePeakTime = p->PeakTime();
+  ePeakValue = p->PeakValue();
+  ePeakIsSaturated = p->PeakIsSaturated();
+  eNPeaks = p->NPeaks();
+  eNpe = p->Npe();
+  
+  ePeakIntegral = p->PeakIntegral();  
+  ePeakAmplitude = p->PeakAmplitude();
+  ePeakTimes = p->PeakTimes();
+ // ebrNpe      = p->brNpe();
+  eSumPeakIntegralPMT = p->eSumPeakIntegralPMT;
+
+  eIntegral = p->Integral();
+  eIntegralPe = p->IntegralPe();
+  eIntegralPeS = p->IntegralPeS();
+  eTimePe = p->TimePe();
+  eIntegralSinglet0 = p->IntegralSinglet0();
+  eIntegralSinglet1 = p->IntegralSinglet1();
+  eCR = p->CR();
+  eCRPe = p->CRPe();
+  eCRPeS = p->CRPeS();
+}

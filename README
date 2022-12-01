@@ -1,0 +1,9 @@
+-----------------------
+HOW TO RUN THE ANALYSIS
+-----------------------
+
+Do
+
+$ ./runAnalysis.sh runNumber dataPath
+
+to create the config file and run the analysis. If you wish to change input to the configuration, edit CreateConfigFile.C

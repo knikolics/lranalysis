@@ -1,0 +1,163 @@
+#ifndef Ar_ArRecoPMT
+#define Ar_ArRecoPMT
+
+#include <iostream>
+#include <fstream>
+#include <string>
+
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <TROOT.h>
+#include <TClonesArray.h>
+#include <TArrayI.h>
+
+#include "ArRun.hh"
+#include "ArAnalysis.hh"
+#include "ArDetector.hh"
+#include "ArPMT.hh"
+
+class ArRecoPMT : public TObject {
+  
+private:
+
+  Int_t    eID;
+  TString  eName;
+  TString  eType;
+
+  // Calibration related variables
+  Double_t eCalibration;
+  Int_t    eDelay;
+  Double_t ePedestal;
+
+  // Pedestal related variables
+  Int_t ePedTimeMin;
+  Int_t ePedTimeMax;
+  Double_t ePedMin;
+  Double_t ePedMax;
+  Double_t ePedMean;
+  Double_t ePedSigma;
+  Double_t ePedChi2;
+  Int_t ePedNpe;
+
+ 
+
+  Double_t ePedIntegral;
+  Double_t ePedIntegralPe;
+  Int_t ePedTimePe;
+
+  // Signal related variables
+  Int_t ePeakStartTime;
+  Int_t ePeakTime;
+  Double_t ePeakValue;
+  Int_t ePeakIsSaturated;
+  Int_t eNPeaks;
+  Int_t eNpe;
+  Double_t eIntegral;
+  Double_t eIntegralPe;
+  Double_t eIntegralPeS;
+  Double_t eTimePe;
+  Double_t eIntegralSinglet0;
+  Double_t eIntegralSinglet1;
+  Double_t eCR;
+  Double_t eCRPe;
+  Double_t eCRPeS;
+
+public:
+  ArRecoPMT();
+  ArRecoPMT(ArPMT *pmt);
+  ~ArRecoPMT();
+
+  // br/luillo
+  //vector <int>    ebrNpe;
+  vector <int>    ePeakTimes;
+  vector <double> ePeakIntegral;
+  vector <double> ePeakAmplitude;
+ 
+
+  //test //khoi
+  //sum of integrals of all the peaks found in 1 event by individual PMT
+  //= sum of all entries in the vector ebrIntegral
+  double eSumPeakIntegralPMT;
+  //end test
+
+
+  void Reset();
+  
+  Int_t    ID()               { return eID;     }
+  TString  Name()             { return eName;   }
+  TString  Type()             { return eType;   }
+
+  Int_t    PedTimeMin()       { return ePedTimeMin;       }
+  Int_t    PedTimeMax()       { return ePedTimeMax;       }
+  Double_t PedMin()           { return ePedMin;           }
+  Double_t PedMax()           { return ePedMax;           }
+  Double_t PedMean()          { return ePedMean;          }
+  Double_t PedSigma()         { return ePedSigma;         }
+  Double_t PedChi2()          { return ePedChi2;          }
+  Int_t    PedNpe()           { return ePedNpe;           }
+  Double_t PedIntegral()      { return ePedIntegral;      }
+  Double_t PedIntegralPe()    { return ePedIntegralPe;    }
+  Int_t    PedTimePe()        { return ePedTimePe;        }
+
+  Int_t PeakTime()            { return ePeakTime;         }
+  Double_t PeakValue()        { return ePeakValue;        }
+  Int_t PeakIsSaturated()     { return ePeakIsSaturated;  }
+  Int_t NPeaks()              { return eNPeaks;           }
+  Int_t Npe()                 { return eNpe;              }
+  Double_t Integral()         { return eIntegral;         }
+  //br variables
+  //vector <int>    brNpe()     { return ebrNpe;            }
+  vector <int>    PeakTimes(){ return ePeakTimes;       }
+  vector <double> PeakIntegral(){ return ePeakIntegral;       }
+  vector <double> PeakAmplitude(){ return ePeakAmplitude;       }
+  
+  Double_t IntegralPe()       { return eIntegralPe;       }
+  Double_t IntegralPeS()      { return eIntegralPeS;      }
+  Double_t TimePe()           { return eTimePe;           }
+  Double_t IntegralSinglet0() { return eIntegralSinglet0; }
+  Double_t IntegralSinglet1() { return eIntegralSinglet1; }
+  Double_t CR()               { return eCR;               }
+  Double_t CRPe()             { return eCRPe;             }
+  Double_t CRPeS()            { return eCRPeS;            }
+
+  void SetID(Int_t id)                  { eID=id;     }
+  void SetName(TString name)            { eName=name; }
+  void SetType(TString type)            { eType=type; }
+
+  void SetPedTimeMin(Int_t i)           { ePedTimeMin=i;       }
+  void SetPedTimeMax(Int_t i)           { ePedTimeMax=i;       }
+  void SetPedMin(Double_t d)            { ePedMin=d;           }
+  void SetPedMax(Double_t d)            { ePedMax=d;           }
+  void SetPedMean(Double_t d)           { ePedMean=d;          }
+  void SetPedSigma(Double_t d)          { ePedSigma=d;         }
+  void SetPedChi2(Double_t d)           { ePedChi2=d;          }
+  void SetPedNpe(Int_t i)               { ePedNpe=i;           }
+  void SetPedIntegral(Double_t d)       { ePedIntegral=d;      }
+  void SetPedIntegralPe(Double_t d)     { ePedIntegralPe=d;    }
+  void SetPedTimePe(Int_t i)            { ePedTimePe=i;        }
+
+  void SetPeakTime(Int_t i)             { ePeakTime=i;         }
+  void SetPeakValue(Double_t d)         { ePeakValue=d;        }
+  void SetPeakIsSaturated(Int_t d)      { ePeakIsSaturated=d;  }
+  void SetNPeaks(Int_t i)               { eNPeaks=i;           }
+  void SetNpe(Int_t i)                  { eNpe=i;              }
+  void SetIntegral(Double_t d)          { eIntegral=d;         }
+  void SetIntegralPe(Double_t d)        { eIntegralPe=d;       }
+  void SetIntegralPeS(Double_t d)       { eIntegralPeS=d;      }
+  void SetTimePe(Double_t d)            { eTimePe=d;           }
+  void SetIntegralSinglet0(Double_t d)  { eIntegralSinglet0=d; }
+  void SetIntegralSinglet1(Double_t d)  { eIntegralSinglet1=d; }
+  void SetCR(Double_t d)                { eCR=d;               }
+  void SetCRPe(Double_t d)              { eCRPe=d;             }
+  void SetCRPeS(Double_t d)             { eCRPeS=d;            }
+
+  void Print(FILE *fp = stdout);
+
+  void Import(ArPMT *p);
+
+  //ClassDef(ArRecoPMT,2);
+  ClassDef(ArRecoPMT,2)
+};
+
+#endif /* Ar_ArRecoPMT */
